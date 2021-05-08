@@ -36,19 +36,19 @@ db.start("/scheam.json", "/js/jsql.worker.js");
 ```typescript
 type Schema = {
     name: string;
-	version: number;
-	tables: Array<Table>;
+    version: number;
+    tables: Array<Table>;
 };
 
 type Table = {
-	name: string;
-	columns: Array<Column>;
-	keyPath?: string;
-	autoIncrement?: boolean;
+    name: string;
+    columns: Array<Column>;
+    keyPath?: string;
+    autoIncrement?: boolean;
 };
 
 type Column = {
-	key: string;
-	unique?: boolean;
+    key: string;
+    unique?: boolean;
 };
 ```
