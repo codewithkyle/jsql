@@ -34,7 +34,15 @@
             e.preventDefault();
             try{
                 const value = input.value;
-                const output = await db.query(value);
+                const output = await db.query(value, {
+                    user1: "hello",
+                    user2: {
+                        uid: "test",
+                        name: "Frank",
+                        email: "frankswanks@gmail.com"
+                    },
+                    user3: [3, 4, 8]
+                });
                 console.log(output);
             } catch (e) {
                 console.error(e);

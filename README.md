@@ -30,6 +30,7 @@ db.start("/path/to/scheam/file.json");
 // Self hosted worker script
 db.start("/scheam.json", "/js/jsql.worker.js");
 
+// Query data
 db.query("SELECT * FROM users LIMIT 10")
     .then(users => {
         users.map(user => { console.log(user) });

@@ -99,6 +99,7 @@ class JSQLWorker {
         const segments:Array<Array<string>> = this.parseSegments(sql);
         let query:Query = {
             type: null,
+            function: null,
             table: null,
             columns: null,
             offset: 0,
@@ -109,6 +110,9 @@ class JSQLWorker {
         };
         for (let i = segments.length - 1; i >= 0; i--){
             switch(segments[i][0]){
+                case "VALUES":
+                    query = this.parseValues(segments[i], query, params ?? {});
+                    break;
                 case "OFFSET":
                     if (segments[i].length !== 2){
                         throw `Invalid syntax at: ${segments[i].join(" ")}`
@@ -140,9 +144,10 @@ class JSQLWorker {
                     break;
                 case "INSERT":
                     query.type = "INSERT";
+                    query = this.parseInsertSegment(segments[i], query);
                     break;
                 case "UPDATE":
-                    query.type = "INSERT";
+                    query.type = "UPDATE";
                     break;
                 default:
                     break;
@@ -156,9 +161,55 @@ class JSQLWorker {
         {
             throw `Invalid syntax: Missing FROM.`;
         }
-        else if (query.columns === null)
+        else if (query.type === "SELECT" && query.columns === null)
         {
             throw `Invalid syntax: Missing columns.`;
+        }
+        else if (query.type === "INSERT" && query.values === null)
+        {
+            throw `Invalid syntax: Missing values.`;
+        }
+        return query;
+    }
+
+    private parseValues(segments:Array<string>, query:Query, params:any):Query{
+        if (segments.length === 1)
+        {
+            throw `Invalid syntax at: ${segments}.`
+        }
+        else
+        {
+            query.values = [];
+            segments.splice(0, 1);
+            const values = segments.join("").replace(/\(|\)|\s/g, "").split(",");
+            for (let i = 0; i < values.length; i++){
+                if (values[i].indexOf("$") === 0){
+                    const key = values[i].substring(1, values[i].length);
+                    if (key in params){
+                        query.values.push(params[key]);
+                    } else {
+                        throw `Invalid params. Missing key: ${key}`;
+                    }
+                } else {
+                    query.values.push(values[i]);
+                }
+            }
+        }
+        return query;
+    }
+
+    private parseInsertSegment(segments:Array<string>, query:Query):Query{
+        if (segments.length < 3 || segments[1] !== "INTO")
+        {
+            throw `Invalid syntax at: ${segments.join(" ")}.`
+        }
+        else if (segments.length === 3)
+        {
+            query.table = segments[2];
+        }
+        else
+        {
+            throw `Invalid syntax. Only 'INSERT INTO table_name' queries are currently supported.`
         }
         return query;
     }
@@ -211,6 +262,9 @@ class JSQLWorker {
             let index = -1;
             for (let i = textNodes.length - 1; i >= 0; i--){
                 switch(textNodes[i].toUpperCase()){
+                    case "VALUES":
+                        index = i;
+                        break;
                     case "OFFSET":
                         index = i;
                         break;
