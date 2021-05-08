@@ -4,3 +4,4 @@ web_modules
 .editorconfig
 jsql.js
 jsql.worker.js
+stream.worker.js

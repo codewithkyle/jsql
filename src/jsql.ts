@@ -1,4 +1,4 @@
-import { Query } from "../jsql";
+import { Query, Settings } from "../jsql";
 
 class JSQLManager {
     private queue: Array<any>;
@@ -10,36 +10,43 @@ class JSQLManager {
             fail: Function;
         }
 	};
+    private settings: Settings;
 
     constructor(){
         this.worker = null;
         this.ready = false;
         this.queue = [];
         this.promises = {};
+        this.settings = {
+            schema: `${location.origin}/scheam.json`,
+            dbWorker: "https://cdn.jsdelivr.net/npm/@codewithkyle/jsql@1/jsql.worker.js",
+            streamWorker: "https://cdn.jsdelivr.net/npm/@codewithkyle/jsql@1/stream-parser.worker.js",
+        };
     }
 
-    public start(schemaURL:string = `${location.origin}/scheam.json`, workerURL:string = "https://cdn.jsdelivr.net/npm/@codewithkyle/jsql@1/jsql.worker.js"):Promise<string|void>{
-        return new Promise((resolve, reject) => {
-            this.worker = new Worker(workerURL);
-            this.worker.onmessage = this.inbox.bind(this);
-            new Promise((internalResolve, interalReject) => {
-                const messageUid = uuid();
-                this.promises[messageUid] = {
-                    success: internalResolve,
-                    fail: interalReject
-                };
-                this.worker.postMessage({
-                    uid: messageUid,
-                    type: "init",
-                    data: schemaURL,
+    public start(settings:Partial<Settings> = {}):Promise<string|void>{
+        this.settings = Object.assign(this.settings, settings);
+        return new Promise(async (resolve, reject) => {
+            try{
+                this.worker = new Worker(this.settings.dbWorker);
+                this.worker.onmessage = this.inbox.bind(this);
+                await new Promise((internalResolve, interalReject) => {
+                    const messageUid = uuid();
+                    this.promises[messageUid] = {
+                        success: internalResolve,
+                        fail: interalReject
+                    };
+                    this.worker.postMessage({
+                        uid: messageUid,
+                        type: "init",
+                        data: this.settings.schema,
+                    });
                 });
-            }).then(()=>{
                 this.flushQueue();
                 resolve();
-            }).catch((e)=>{
-                console.error(e);
+            } catch (e) {
                 reject(e);
-            });
+            }
         });
     }
 
@@ -93,7 +100,7 @@ class JSQLManager {
     public query(SQL:string, params:any = null):Promise<any>{
         return new Promise((resolve, reject) => {
             this.send("sql", {
-                sql: SQL,
+                sql: `${SQL}`,
                 params: params,
             }, resolve, reject);
         });
@@ -114,6 +121,67 @@ class JSQLManager {
                 set: null,
             }, query), resolve, reject);
         });
+    }
+
+    public async ingest(url:string, table:string, type:"JSON" | "NDJSON" = "NDJSON"){
+        if (type === "JSON"){
+            await this.ingestAsJSON(url, table);
+        } else {
+            await this.ingestAsNDJSON(url, table);
+        }
+    }
+
+    private ingestAsNDJSON(url:string, table:string):Promise<void>{
+        return new Promise((resolve, reject) => {
+            const worker = new Worker(this.settings.streamWorker);
+            try {
+                worker.onmessage = async (e:MessageEvent) => {
+                    const { result, type } = e.data;
+                    switch(type){
+                        case "result":
+                            this.query(`INSERT INTO ${table} VALUES ($row)`, {
+                                row: result,
+                            })
+                            break;
+                        case "done":
+                            worker.terminate();
+                            resolve();
+                            break;
+                        default:
+                            break;
+                    }
+                };
+                worker.postMessage({
+                    url: url,
+                });
+            } catch (e) {
+                console.log(e);
+                worker.terminate();
+                reject(e);
+            }
+        });
+    }
+
+    private async ingestAsJSON(url:string, table:string){
+        const request = await fetch(url, {
+            method: "GET",
+            headers: new Headers({
+                Accept: "application/json",
+            }),
+            credentials: "include"
+        });
+        if (request.ok){
+            const response = await request.json();
+            const inserts = [];
+            for (const row of response){
+                inserts.push(this.query(`INSERT INTO ${table} VALUES ($row)`, {
+                    row: row,
+                }));
+            }
+            await Promise.all(inserts);
+        } else {
+            throw `${request.status}: ${request.statusText}`;
+        }
     }
 }
 

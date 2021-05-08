@@ -3,18 +3,60 @@
 	"version": 1,
 	"tables": [
 		{
-			"name": "users",
-			"keyPath": "uid",
+			"name": "cards",
+			"keyPath": "UID",
 			"columns": [
 				{
-					"key": "uid",
+					"key": "UID",
 					"unique": true
 				},
 				{
-					"key": "name"
+					"key": "Name"
 				},
 				{
-					"key": "email"
+					"key": "Slug"
+				},
+				{
+					"key": "Layout"
+				},
+				{
+					"key": "Rarity"
+				},
+				{
+					"key": "Type"
+				},
+				{
+					"key": "Text"
+				},
+				{
+					"key": "FlavorText"
+				},
+				{
+					"key": "Vitality"
+				},
+				{
+					"key": "FaceNames"
+				},
+				{
+					"key": "ManaCosts"
+				},
+				{
+					"key": "TotalManaCost"
+				},
+				{
+					"key": "Subtypes"
+				},
+				{
+					"key": "Colors"
+				},
+				{
+					"key": "Keywords"
+				},
+				{
+					"key": "Front"
+				},
+				{
+					"key": "Back"
 				}
 			]
 		}

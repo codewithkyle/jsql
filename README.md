@@ -77,6 +77,12 @@ db.raw({
 ## Interaces
 
 ```typescript
+interface Settings {
+    schema: string,
+    dbWorker: string,
+    streamParserWorker: string,
+}
+
 interface Schema {
     name: string;
     version: number;

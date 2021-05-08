@@ -14,23 +14,23 @@ class JSQLWorker {
     private async inbox(e:MessageEvent){
         const { type, uid, data } = e.data;
         try {
-            let response = null;
+            let output:any = null;
             switch (type){
                 case "init":
                     await this.init(data);
                     break;
                 case "query":
-                    response = this.performQuery(data);
+                    output = await this.performQuery(data);
                     break;
                 case "sql":
                     const query = await this.buildQuery(data);
-                    response = this.performQuery(query);
+                    output = await this.performQuery(query);
                     break;
                 default:
                     console.warn(`Invalid JSQL Worker message type: ${type}`);
                     break;
             }
-            this.send("response", response, uid);
+            this.send("response", output, uid);
         } catch (e) {
             this.send("error", e, uid);
         }
@@ -56,6 +56,7 @@ class JSQLWorker {
             headers: new Headers({
                 Accept: "application/json",
             }),
+            credentials: "include",
         });
         if (!request.ok){
             throw `${request.status}: ${request.statusText}`;
@@ -97,11 +98,40 @@ class JSQLWorker {
                 console.error("This app needs to restart. Close all tabs for this app and before relaunching.");
             },
         });
+        return;
     }
 
-    private async performQuery(query:Query):Promise<any>{
-        let output = [];
-        return output;
+    private async performQuery(query:Query):Promise<Array<any>>{
+        let rows = [];
+        switch(query.type){
+            case "SELECT":
+                rows = await this.db.getAll(query.table);
+                break;
+            case "INSERT":
+                for (const row of query.values){
+                    await this.db.put(query.table, row);
+                }
+                rows = query.values;
+                break;
+            default:
+                break;
+        }
+        if (query.columns.length && query.columns[0] !== "*"){
+            let modifiedRows = [];
+            for (let j = 0; j < rows.length; j++){
+                const row = rows[j];
+                const temp = {};
+                for (let i = 0; i < query.columns.length; i++){
+                    temp[query.columns[i]] = row?.[query.columns[i]] ?? null;
+                }
+                modifiedRows.push(temp);
+            }
+            rows = modifiedRows;
+        }
+        if (query.limit !== null){
+            rows = rows.splice(query.offset, query.limit);
+        }
+        return rows;
     }
 
     private async buildQuery({ sql, params }):Promise<Query>{

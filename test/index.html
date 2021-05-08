@@ -26,7 +26,20 @@
     </form>
     <script type="module">
         import db from "./jsql.js";
-        db.start("/scheam.json", "/jsql.worker.js");
+        db.start({
+            schema: "/scheam.json", 
+            dbWorker: "/jsql.worker.js",
+            streamWorker: "/stream.worker.js"
+        }).then(() => {
+            if (!localStorage.getItem("loaded-once")){
+                db.ingest("/cards.ndjson", "cards").then(() => {
+                    alert("Application is ready");
+                    localStorage.setItem("loaded-once", true);
+                });
+            }
+        }).catch(e => {
+            console.error(e);
+        })
 
         const form = document.body.querySelector("form");
         const input = document.body.querySelector("input");

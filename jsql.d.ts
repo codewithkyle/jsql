@@ -40,3 +40,9 @@ export type Query = {
         [column:string]: any,
     },
 };
+
+export type Settings = {
+    schema: string,
+    dbWorker: string,
+    streamWorker: string,
+};
