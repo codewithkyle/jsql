@@ -1,4 +1,4 @@
-import type { Table, Schema, Column } from "../jsql";
+import type { Table, Schema, Column, Query } from "../jsql";
 import { openDB, deleteDB } from "./lib/idb";
 
 class JSQLWorker {
@@ -20,7 +20,7 @@ class JSQLWorker {
                     await this.init(data);
                     break;
                 case "query":
-                    await this.queryParser(data);
+                    response = await this.queryBuilder(data);
                     break;
                 default:
                     console.warn(`Invalid JSQL Worker message type: ${type}`);
@@ -95,11 +95,113 @@ class JSQLWorker {
         });
     }
 
-    private async queryParser({ sql, params }){
-        const segments = this.buildSegments(sql);
+    private async queryBuilder({ sql, params }):Promise<Query>{
+        const segments:Array<Array<string>> = this.parseSegments(sql);
+        let query:Query = {
+            type: null,
+            table: null,
+            columns: null,
+            offset: 0,
+            limit: null,
+            where: null,
+            values: null,
+            order: null,
+        };
+        for (let i = segments.length - 1; i >= 0; i--){
+            switch(segments[i][0]){
+                case "OFFSET":
+                    if (segments[i].length !== 2){
+                        throw `Invalid syntax at: ${segments[i].join(" ")}`
+                    }
+                    query.offset = parseInt(segments[i][1]);
+                    break;
+                case "LIMIT":
+                    if (segments[i].length !== 2){
+                        throw `Invalid syntax at: ${segments[i].join(" ")}`
+                    }
+                    query.limit = parseInt(segments[i][1]);
+                    break;
+                case "ORDER":
+                    break;
+                case "WHERE":
+                    break;
+                case "FROM":
+                    if (segments[i].length !== 2){
+                        throw `Invalid syntax at: ${segments[i].join(" ")}`
+                    }
+                    query.table = segments[i][1];
+                    break;
+                case "SELECT":
+                    query.type = "SELECT";
+                    query = this.parseSelectSegment(segments[i], query);
+                    break;
+                case "DELETE":
+                    query.type = "DELETE";
+                    break;
+                case "INSERT":
+                    query.type = "INSERT";
+                    break;
+                case "UPDATE":
+                    query.type = "INSERT";
+                    break;
+                default:
+                    break;
+            }
+        }
+        if (query.type === null)
+        {
+            throw `Invalid syntax: Missing SELECT, UPDATE, INSERT INTO, or DELETE statement.`;
+        }
+        else if (query.table === null)
+        {
+            throw `Invalid syntax: Missing FROM.`;
+        }
+        else if (query.columns === null)
+        {
+            throw `Invalid syntax: Missing columns.`;
+        }
+        return query;
     }
 
-    private buildSegments(sql){
+    private parseSelectSegment(segments:Array<string>, query:Query):Query{
+        if (segments.length === 1)
+        {
+            throw `Invalid syntax at: ${segments}.`
+        }
+        else if (segments[1].toUpperCase() === "DISTINCT")
+        {
+            throw `Invalid syntax: DISTINCT selects are not currently supported.`
+        }
+        else if (segments.includes("*"))
+        {
+            query.columns = ["*"];
+        }
+        else if (segments[1].indexOf("COUNT") === 0 || segments[1].indexOf("MIN") === 0 || segments[1].indexOf("MAX") === 0 || segments[1].indexOf("AVG") === 0 || segments[1].indexOf("SUM") === 0)
+        {
+            // TODO: handle custom selects
+        }
+        else
+        {
+            query.columns = [];
+            for (let i = 1; i < segments.length; i++)
+            {
+                if (segments[i].indexOf(",") === -1){
+                    query.columns.push(segments[i]);
+                } else {
+                    const cols = segments[i].split(",");
+                    for (let j = 0; j < cols.length; j++){
+                        const col = cols[j].trim();
+                        if (col.length){
+                            query.columns.push(col);
+                        }
+                    }
+                }
+            }
+        }
+        return query;
+    }
+
+    private parseSegments(sql){
         let textNodes:Array<string> = sql.replace(/\s+/g, " ").trim().split(" ");
         const segments = [];
         while(textNodes.length > 0){
@@ -141,12 +243,12 @@ class JSQLWorker {
                 }
             }
             if (index === -1 && textNodes.length > 0){
-                throw `Invalid syntax. Query: '${sql}'`;
+                throw `Invalid syntax: ${sql}`;
             } else {
                 segments.push(textNodes.splice(index, textNodes.length));
             }
         }
-        return segments.reverse();
+        return segments;
     }
 }
 new JSQLWorker();
