@@ -134,18 +134,26 @@ class JSQLManager {
     private ingestAsNDJSON(url:string, table:string):Promise<void>{
         return new Promise((resolve, reject) => {
             const worker = new Worker(this.settings.streamWorker);
+            let total = 0;
+            let totalInserted = 0;
+            let hasFinished = false;
             try {
                 worker.onmessage = async (e:MessageEvent) => {
                     const { result, type } = e.data;
                     switch(type){
                         case "result":
-                            this.query(`INSERT INTO ${table} VALUES ($row)`, {
+                            total++;
+                            await this.query(`INSERT INTO ${table} VALUES ($row)`, {
                                 row: result,
-                            })
+                            });
+                            totalInserted++;
+                            if (total === totalInserted && hasFinished){
+                                resolve();
+                            }
                             break;
                         case "done":
                             worker.terminate();
-                            resolve();
+                            hasFinished = true;
                             break;
                         default:
                             break;

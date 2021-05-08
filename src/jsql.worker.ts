@@ -106,6 +106,15 @@ class JSQLWorker {
         switch(query.type){
             case "SELECT":
                 rows = await this.db.getAll(query.table);
+                if (query.columns.length && query.columns[0] !== "*"){
+                    rows = this.filterColumns(query, rows);
+                }
+                if (query.order !== null){
+                    this.sort(query, rows);
+                }
+                if (query.limit !== null){
+                    rows = rows.splice(query.offset, query.limit);
+                }
                 break;
             case "INSERT":
                 for (const row of query.values){
@@ -116,22 +125,36 @@ class JSQLWorker {
             default:
                 break;
         }
-        if (query.columns.length && query.columns[0] !== "*"){
-            let modifiedRows = [];
-            for (let j = 0; j < rows.length; j++){
-                const row = rows[j];
-                const temp = {};
-                for (let i = 0; i < query.columns.length; i++){
-                    temp[query.columns[i]] = row?.[query.columns[i]] ?? null;
-                }
-                modifiedRows.push(temp);
-            }
-            rows = modifiedRows;
-        }
-        if (query.limit !== null){
-            rows = rows.splice(query.offset, query.limit);
-        }
         return rows;
+    }
+
+    private sort(query:Query, rows:Array<any>){
+        if (query.order.by === "ASC"){
+            rows.sort((a, b) => {
+                const valueA = a?.[query.order.column] ?? 0;
+                const valueB = b?.[query.order.column] ?? 0;
+                return valueA >= valueB ? 1 : -1;
+            });
+        } else {
+            rows.sort((a, b) => {
+                const valueA = a?.[query.order.column] ?? 0;
+                const valueB = b?.[query.order.column] ?? 0;
+                return valueA >= valueB ? -1 : 1;
+            });
+        }
+    }
+
+    private filterColumns(query:Query, rows:Array<any>):Array<any>{
+        let modifiedRows = [];
+        for (let j = 0; j < rows.length; j++){
+            const row = rows[j];
+            const temp = {};
+            for (let i = 0; i < query.columns.length; i++){
+                temp[query.columns[i]] = row?.[query.columns[i]] ?? null;
+            }
+            modifiedRows.push(temp);
+        }
+        return modifiedRows;
     }
 
     private async buildQuery({ sql, params }):Promise<Query>{
