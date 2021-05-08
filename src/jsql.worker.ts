@@ -20,11 +20,11 @@ class JSQLWorker {
                     await this.init(data);
                     break;
                 case "query":
-                    // TODO: handle query object
+                    response = this.performQuery(data);
                     break;
                 case "sql":
-                    response = await this.queryBuilder(data);
-                    // TODO: handle query object
+                    const query = await this.buildQuery(data);
+                    response = this.performQuery(query);
                     break;
                 default:
                     console.warn(`Invalid JSQL Worker message type: ${type}`);
@@ -99,7 +99,12 @@ class JSQLWorker {
         });
     }
 
-    private async queryBuilder({ sql, params }):Promise<Query>{
+    private async performQuery(query:Query):Promise<any>{
+        let output = [];
+        return output;
+    }
+
+    private async buildQuery({ sql, params }):Promise<Query>{
         const segments:Array<Array<string>> = this.parseSegments(sql);
         let query:Query = {
             type: null,
