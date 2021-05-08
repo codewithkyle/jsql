@@ -107,10 +107,12 @@ class JSQLWorker {
             where: null,
             values: null,
             order: null,
+            set: null,
         };
         for (let i = segments.length - 1; i >= 0; i--){
             switch(segments[i][0]){
                 case "SET":
+                    query = this.parseSetSegment(segments[i], query, params ?? {})
                     break;
                 case "VALUES":
                     query = this.parseValues(segments[i], query, params ?? {});
@@ -131,7 +133,7 @@ class JSQLWorker {
                     query = this.parseOrderBySegment(segments[i], query);
                     break;
                 case "WHERE":
-                    query = this.parseWhereSegment(segments[i], query, params);
+                    query = this.parseWhereSegment(segments[i], query, params ?? {});
                     break;
                 case "FROM":
                     if (segments[i].length !== 2){
@@ -175,7 +177,54 @@ class JSQLWorker {
         }
         else if (query.type === "INSERT" && query.values === null)
         {
-            throw `Invalid syntax: Missing values.`;
+            throw `Invalid syntax: Missing VALUES.`;
+        }
+        else if (query.type === "UPDATE" && query.set === null)
+        {
+            throw `Invalid syntax: Missing SET.`;
+        }
+        else if (query.type === "UPDATE" && query.where === null)
+        {
+            throw `Invalid syntax: Missing WHERE.`;
+        }
+        else if (isNaN(query.limit))
+        {
+            throw `Invalid syntax: LIMIT is not a number.`;
+        }
+        else if (isNaN(query.offset))
+        {
+            throw `Invalid syntax: OFFSET is not a number.`;
+        }
+        return query;
+    }
+
+    private parseSetSegment(segments:Array<string>, query:Query, params:any):Query{
+        if (segments.length < 2)
+        {
+            throw `Invalid syntax at: ${segments.join(" ")}.`
+        }
+        else
+        {
+            query.set = {};
+            segments.splice(0, 1);
+            const groups = segments.join(" ").trim().split(",");
+            for (let i = 0; i < groups.length; i++){
+                const values = groups[i].trim().split("=");
+                if (values.length !== 2){
+                    throw `Invalid syntax at: ${groups[i]}`;
+                }
+                query.set[values[0].trim()] = values[1].trim().replace(/^[\"\']|[\"\']$/g, "");
+            }
+        }
+        for (const column in query.set){
+            if (query.set[column].indexOf("$") === 0){
+                const key = query.set[column].substring(1, query.set[column].length);
+                if (key in params){
+                    query.set[column] = params[key];
+                } else {
+                    throw `Invalid params. Missing key: ${key}`;
+                }
+            }
         }
         return query;
     }
@@ -194,14 +243,14 @@ class JSQLWorker {
                 const condition = conditions[i].trim();
                 if (condition.indexOf(" OR ") === -1){
                     if (condition.indexOf("NOT ") === 0){
-                        const values = condition.replace(/^(NOT)/, "").trim().replace(/\'|\"/g, "").split("=");
+                        const values = condition.replace(/^(NOT)/, "").trim().split("=");
                         if (values.length !== 2){
                             throw `Invalid syntax at: ${condition}`;
                         }
                         query.where.push({
                             type: "EXCLUDE",
                             column: values[0].trim(),
-                            values: [values[1].trim()],
+                            values: [values[1].trim().replace(/^[\"\']|[\"\']$/g, "")],
                         });
                     } 
                     else if (condition.indexOf("IS NOT NULL") !== -1){
@@ -219,7 +268,7 @@ class JSQLWorker {
                         query.where.push({
                             type: "INCLUDE",
                             column: values[0].trim(),
-                            values: [values[1].trim()],
+                            values: [values[1].trim().replace(/^[\"\']|[\"\']$/g, "")],
                         });
                     }
                 } else {

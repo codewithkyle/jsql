@@ -90,5 +90,8 @@ interface Query {
         by: "ASC" | "DESC",
     },
     values: Array<any>,
+    set: {
+        [column:string]: any,
+    },
 }
 ```
