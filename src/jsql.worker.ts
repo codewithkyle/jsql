@@ -1,4 +1,4 @@
-import type { Table, Schema, Column, Query } from "../jsql";
+import type { Table, Schema, Column, Query, SQLFunction } from "../jsql";
 import { openDB, deleteDB } from "./lib/idb";
 
 class JSQLWorker {
@@ -176,9 +176,12 @@ class JSQLWorker {
         {
             query.columns = ["*"];
         }
-        else if (segments[1].indexOf("COUNT") === 0 || segments[1].indexOf("MIN") === 0 || segments[1].indexOf("MAX") === 0 || segments[1].indexOf("AVG") === 0 || segments[1].indexOf("SUM") === 0)
+        else if (segments[1].toUpperCase().indexOf("COUNT") === 0 || segments[1].toUpperCase().indexOf("MIN") === 0 || segments[1].toUpperCase().indexOf("MAX") === 0 || segments[1].toUpperCase().indexOf("AVG") === 0 || segments[1].toUpperCase().indexOf("SUM") === 0)
         {
-            // TODO: handle custom selects
+            const type = segments[1].match(/\w+/)[0].trim().toUpperCase();
+            const column = segments[1].match(/\(.*?\)/)[0].replace(/\(|\)/g, "").trim();
+            query.function = type as SQLFunction;
+            query.columns = [column];
         }
         else
         {

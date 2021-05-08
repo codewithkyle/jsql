@@ -16,8 +16,12 @@ export type Column = {
 	unique?: boolean,
 };
 
+export type SQLFunction = "COUNT" | "AVG" | "MIN" | "MAX" | "SUM";
+export type SQLStatement = "SELECT" | "UPDATE" | "DELETE" | "INSERT";
+
 export type Query = {
-    type: "SELECT" | "UPDATE" | "DELETE" | "INSERT",
+    type: SQLStatement,
+    function: SQLFunction,
     table: string,
     columns: Array<string>,
     where: {
