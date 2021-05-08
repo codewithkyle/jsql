@@ -1,0 +1,27 @@
+{
+  "name": "@codewithkyle/jsql",
+  "version": "1.0.0",
+  "description": "",
+  "main": "jsql.js",
+  "files": [
+      "jsql.js",
+      "jsql.worker.js",
+      "jsql.d.ts"
+  ],
+  "scripts": {
+    "install": "node ./build/bundle.js",
+    "build": "esbuild ./src/jsql.ts --outfile=jsql.js --format=esm --minify && esbuild ./src/jsql.worker.ts --outfile=jsql.worker.js --minify --bundle",
+    "test": "serve ./test"
+  },
+  "author": "Kyle Andrews <codingwithkyle@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.11.20",
+    "esinstall": "^1.1.4",
+    "idb": "^6.0.0",
+    "serve": "^11.3.2"
+  },
+  "bundle": [
+    "idb"
+  ]
+}

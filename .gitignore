@@ -1,0 +1,6 @@
+node_modules
+web_modules
+.DS_Store
+.editorconfig
+jsql.js
+jsql.worker.js
