@@ -14,12 +14,12 @@ class JSQLManager {
         this.ready = false;
         this.queue = [];
         this.promises = {};
-        self.onmessage = this.inbox.bind(this);
     }
 
     public start(schemaURL:string = `${location.origin}/scheam.json`, workerURL:string = "https://cdn.jsdelivr.net/npm/@codewithkyle/jsql@1/jsql.worker.js"):Promise<string|void>{
         return new Promise((resolve, reject) => {
             this.worker = new Worker(workerURL);
+            this.worker.onmessage = this.inbox.bind(this);
             new Promise((internalResolve, interalReject) => {
                 const messageUid = uuid();
                 this.promises[messageUid] = {
@@ -87,6 +87,15 @@ class JSQLManager {
 			this.queue.push(message);
 		}
 	}
+
+    public query(SQL:string, params:any = null):Promise<any>{
+        return new Promise((resolve, reject) => {
+            this.send("query", {
+                sql: SQL,
+                params: params,
+            }, resolve, reject);
+        });
+    }
 }
 
 function uuid(){

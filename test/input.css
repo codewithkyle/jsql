@@ -1,0 +1,87 @@
+input-component {
+    display: inline-block;
+    width: 100%;
+    position: relative;
+}
+input-component[state="invalid"] label {
+    color: var(--danger-700) !important;
+}
+input-component[state="invalid"] input {
+    border-color: var(--danger-400);
+    background-color: var(--danger-100);
+}
+input-component[state="invalid"] input:hover {
+    border-color: var(--danger-500);
+}
+input-component[state="invalid"] input:focus {
+    border-color: var(--danger-500);
+    box-shadow: 0 0 0 5px var(--danger-100);
+}
+input-component[state="invalid"] input::placeholder {
+    color: var(--danger-700);
+}
+input-component[state="invalid"] i {
+    color: var(--danger-700);
+}
+input-component label {
+    display: block;
+    width: 100%;
+    font-size: var(--font-sm);
+    font-weight: var(--font-medium);
+    color: var(--grey-800);
+    margin-bottom: 0.5rem;
+}
+input-component input {
+    height: 48px;
+    display: block;
+    width: 100%;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    line-height: 48px;
+    padding: 0 1rem;
+    background-color: var(--grey-100);
+    border: 1px solid var(--grey-300);
+    border-radius: 0.25rem;
+    color: var(--grey-900);
+    transition: all 150ms var(--ease-in-out);
+}
+input-component input::placeholder {
+    color: var(--grey-700);
+}
+input-component input:hover {
+    border-color: var(--primary-400);
+}
+input-component input:focus {
+    border-color: var(--primary-400);
+    box-shadow: 0 0 0 5px var(--primary-100);
+    background-color: var(--white);
+}
+input-component input.has-icon {
+    padding-left: calc(24px + 1rem);
+}
+input-component p {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: var(--font-xs);
+    color: var(--grey-700);
+    line-height: 1.375;
+}
+input-component p.error {
+    color: var(--danger-700);
+}
+input-component i {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 24px;
+    height: 24px;
+    pointer-events: none;
+    position: absolute;
+    bottom: calc((48px - 24px) / 2);
+    left: 0.5rem;
+    color: var(--grey-700);
+}
+input-component i svg {
+    width: 18px;
+    height: 18px;
+}

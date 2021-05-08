@@ -19,6 +19,9 @@ class JSQLWorker {
                 case "init":
                     await this.init(data);
                     break;
+                case "query":
+                    await this.queryParser(data);
+                    break;
                 default:
                     console.warn(`Invalid JSQL Worker message type: ${type}`);
                     break;
@@ -90,6 +93,60 @@ class JSQLWorker {
                 console.error("This app needs to restart. Close all tabs for this app and before relaunching.");
             },
         });
+    }
+
+    private async queryParser({ sql, params }){
+        const segments = this.buildSegments(sql);
+    }
+
+    private buildSegments(sql){
+        let textNodes:Array<string> = sql.replace(/\s+/g, " ").trim().split(" ");
+        const segments = [];
+        while(textNodes.length > 0){
+            let index = -1;
+            for (let i = textNodes.length - 1; i >= 0; i--){
+                switch(textNodes[i].toUpperCase()){
+                    case "OFFSET":
+                        index = i;
+                        break;
+                    case "LIMIT":
+                        index = i;
+                        break;
+                    case "ORDER":
+                        index = i;
+                        break;
+                    case "WHERE":
+                        index = i;
+                        break;
+                    case "FROM":
+                        index = i;
+                        break;
+                    case "SELECT":
+                        index = i;
+                        break;
+                    case "DELETE":
+                        index = i;
+                        break;
+                    case "INSERT":
+                        index = i;
+                        break;
+                    case "UPDATE":
+                        index = i;
+                        break;
+                    default:
+                        break;
+                }
+                if (index !== -1){
+                    break;
+                }
+            }
+            if (index === -1 && textNodes.length > 0){
+                throw `Invalid syntax. Query: '${sql}'`;
+            } else {
+                segments.push(textNodes.splice(index, textNodes.length));
+            }
+        }
+        return segments.reverse();
     }
 }
 new JSQLWorker();

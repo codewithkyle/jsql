@@ -1,0 +1,22 @@
+{
+    "name": "demo",
+	"version": 1,
+	"tables": [
+		{
+			"name": "users",
+			"keyPath": "uid",
+			"columns": [
+				{
+					"key": "uid",
+					"unique": true
+				},
+				{
+					"key": "name"
+				},
+				{
+					"key": "email"
+				}
+			]
+		}
+	]
+}

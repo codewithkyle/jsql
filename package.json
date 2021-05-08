@@ -11,6 +11,7 @@
   "scripts": {
     "install": "node ./build/bundle.js",
     "build": "esbuild ./src/jsql.ts --outfile=jsql.js --format=esm --minify && esbuild ./src/jsql.worker.ts --outfile=jsql.worker.js --minify --bundle",
+    "build:test": "npm run build && cp ./jsql.js ./test && cp ./jsql.worker.js ./test",
     "test": "serve ./test"
   },
   "author": "Kyle Andrews <codingwithkyle@gmail.com>",
