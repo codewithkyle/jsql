@@ -131,6 +131,7 @@ class JSQLWorker {
                     query = this.parseOrderBySegment(segments[i], query);
                     break;
                 case "WHERE":
+                    query = this.parseWhereSegment(segments[i], query, params);
                     break;
                 case "FROM":
                     if (segments[i].length !== 2){
@@ -157,7 +158,7 @@ class JSQLWorker {
                     query.type = "UPDATE";
                     break;
                 default:
-                    break;
+                    throw `Invalid syntax at: ${segments[i].join(" ")}`;
             }
         }
         if (query.type === null)
@@ -175,6 +176,83 @@ class JSQLWorker {
         else if (query.type === "INSERT" && query.values === null)
         {
             throw `Invalid syntax: Missing values.`;
+        }
+        return query;
+    }
+
+    private parseWhereSegment(segments:Array<string>, query:Query, params:any):Query{
+        if (segments.length < 2)
+        {
+            throw `Invalid syntax at: ${segments.join(" ")}.`
+        }
+        else
+        {
+            query.where = [];
+            segments.splice(0, 1);
+            const conditions = segments.join(" ").trim().split(" AND ");
+            for (let i = 0; i < conditions.length; i++){
+                const condition = conditions[i].trim();
+                if (condition.indexOf(" OR ") === -1){
+                    if (condition.indexOf("NOT ") === 0){
+                        const values = condition.replace(/^(NOT)/, "").trim().replace(/\'|\"/g, "").split("=");
+                        if (values.length !== 2){
+                            throw `Invalid syntax at: ${condition}`;
+                        }
+                        query.where.push({
+                            type: "EXCLUDE",
+                            column: values[0].trim(),
+                            values: [values[1].trim()],
+                        });
+                    } 
+                    else if (condition.indexOf("IS NOT NULL") !== -1){
+                        const column = condition.replace("IS NOT NULL", "").trim();
+                        query.where.push({
+                            type: "EXCLUDE",
+                            column: column,
+                            values: [null],
+                        });
+                    } else {
+                        const values = condition.trim().replace(/\'|\"/g, "").split("=");
+                        if (values.length !== 2){
+                            throw `Invalid syntax at: ${condition}`;
+                        }
+                        query.where.push({
+                            type: "INCLUDE",
+                            column: values[0].trim(),
+                            values: [values[1].trim()],
+                        });
+                    }
+                } else {
+                    const conditionSegments = condition.split(" OR ");
+                    const result = {
+                        type: "INCLUDE",
+                        column: null,
+                        values: [],
+                    };
+                    for (let i = 0; i < conditionSegments.length; i++){
+                        const values = conditionSegments[i].trim().replace(/\'|\"/g, "").split("=");
+                        if (values.length !== 2){
+                            throw `Invalid syntax at: ${condition}`;
+                        }
+                        result.column = values[0].trim();
+                        result.values.push(values[1].trim());
+                    }
+                    // @ts-ignore
+                    query.where.push(result);
+                }
+            }
+        }
+        for (let i = 0; i < query.where.length; i++){
+            for (let j = 0; j < query.where[i].values.length; j++){
+                if (query.where[i].values[j].indexOf("$") === 0){
+                    const key = query.where[i].values[j].substring(1, query.where[i].values[j].length);
+                    if (key in params){
+                        query.where[i].values[j] = params[key];
+                    } else {
+                        throw `Invalid params. Missing key: ${key}`;
+                    }
+                }
+            }
         }
         return query;
     }

@@ -24,9 +24,11 @@ export type Query = {
     function: SQLFunction,
     table: string,
     columns: Array<string>,
-    where: {
-        [column:string]: any,
-    },
+    where: Array<{
+        type: "INCLUDE" | "EXCLUDE",
+        column: string,
+        values: Array<any>,
+    }>,
     limit: number,
     offset: number,
     order: {
