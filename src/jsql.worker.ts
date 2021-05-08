@@ -110,6 +110,8 @@ class JSQLWorker {
         };
         for (let i = segments.length - 1; i >= 0; i--){
             switch(segments[i][0]){
+                case "SET":
+                    break;
                 case "VALUES":
                     query = this.parseValues(segments[i], query, params ?? {});
                     break;
@@ -126,6 +128,7 @@ class JSQLWorker {
                     query.limit = parseInt(segments[i][1]);
                     break;
                 case "ORDER":
+                    query = this.parseOrderBySegment(segments[i], query);
                     break;
                 case "WHERE":
                     break;
@@ -147,6 +150,10 @@ class JSQLWorker {
                     query = this.parseInsertSegment(segments[i], query);
                     break;
                 case "UPDATE":
+                    if (segments[i].length !== 2){
+                        throw `Invalid syntax at: ${segments[i].join(" ")}`
+                    }
+                    query.table = segments[i][1];
                     query.type = "UPDATE";
                     break;
                 default:
@@ -168,6 +175,37 @@ class JSQLWorker {
         else if (query.type === "INSERT" && query.values === null)
         {
             throw `Invalid syntax: Missing values.`;
+        }
+        return query;
+    }
+
+    private parseOrderBySegment(segments:Array<string>, query:Query):Query{
+        if (segments.length < 3 || segments[1] !== "BY")
+        {
+            throw `Invalid syntax at: ${segments.join(" ")}.`
+        }
+        else
+        {
+            segments.splice(0, 2);
+            if (segments.length > 2 || segments[0].indexOf(",") !== -1)
+            {
+                throw `Invalid syntax. ORDER BY currently supports single column sorting.`
+            }
+            else
+            {
+                let sort = "ASC";
+                if (segments?.[1]){
+                    sort = segments[1].toUpperCase();
+                    if (sort !== "ASC" && sort !== "DESC"){
+                        throw `Invalid syntax. ORDER BY currently supports ASC or DESC sorting.`
+                    }
+                }
+                query.order = {
+                    column: segments[0],
+                    // @ts-ignore
+                    by: sort,
+                }
+            }
         }
         return query;
     }
@@ -262,6 +300,9 @@ class JSQLWorker {
             let index = -1;
             for (let i = textNodes.length - 1; i >= 0; i--){
                 switch(textNodes[i].toUpperCase()){
+                    case "SET":
+                        index = i;
+                        break;
                     case "VALUES":
                         index = i;
                         break;
