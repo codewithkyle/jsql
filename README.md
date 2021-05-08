@@ -34,20 +34,20 @@ db.start("/scheam.json", "/js/jsql.worker.js");
 ## Interaces
 
 ```typescript
-type Schema = {
+interface Schema {
     name: string;
     version: number;
     tables: Array<Table>;
 };
 
-type Table = {
+interface Table {
     name: string;
     columns: Array<Column>;
     keyPath?: string;
     autoIncrement?: boolean;
 };
 
-type Column = {
+interface Column {
     key: string;
     unique?: boolean;
 };
