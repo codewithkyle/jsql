@@ -17,7 +17,7 @@ class JSQLManager {
         self.onmessage = this.inbox.bind(this);
     }
 
-    public init(schemaURL:string, workerURL:string = null):Promise<void>{
+    public start(schemaURL:string = `${location.origin}/scheam.json`, workerURL:string = "https://cdn.jsdelivr.net/npm/@codewithkyle/jsql@1/jsql.worker.js"):Promise<string|void>{
         return new Promise((resolve, reject) => {
             this.worker = new Worker(workerURL);
             new Promise((internalResolve, interalReject) => {
@@ -36,7 +36,7 @@ class JSQLManager {
                 resolve();
             }).catch((e)=>{
                 console.error(e);
-                reject();
+                reject(e);
             });
         });
     }
