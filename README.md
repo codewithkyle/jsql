@@ -29,7 +29,11 @@ db.start("/path/to/scheam/file.json");
 
 // Self hosted worker script
 db.start("/scheam.json", "/js/jsql.worker.js");
+```
 
+## Writing Queries
+
+```javascript
 // Query data from IndexedDB
 db.query("SELECT * FROM users LIMIT 10")
     .then(users => {
@@ -49,6 +53,24 @@ db.query("INSERT INTO users VALUES ($user1, $user2)", {
         name: "April Summers",
         email: "popartfan18@example.com",
     }
+});
+
+// Build your own query object
+db.raw({
+    type: "SELECT",
+    function: null,
+    table: "users",
+    columns: ["*"],
+    offset: 0,
+    limit: null,
+    where: [{
+        type: "INCLUDE",
+        column: "nanme",
+        values: ["Frank"],
+    }],
+    values: null,
+    order: null,
+    set: null,
 });
 ```
 

@@ -1,3 +1,5 @@
+import { Query } from "../jsql";
+
 class JSQLManager {
     private queue: Array<any>;
 	private ready: boolean;
@@ -90,10 +92,27 @@ class JSQLManager {
 
     public query(SQL:string, params:any = null):Promise<any>{
         return new Promise((resolve, reject) => {
-            this.send("query", {
+            this.send("sql", {
                 sql: SQL,
                 params: params,
             }, resolve, reject);
+        });
+    }
+
+    public raw(query:Partial<Query>):Promise<any>{
+        return new Promise((resolve, reject) => {
+            this.send("query", Object.assign({
+                type: null,
+                function: null,
+                table: null,
+                columns: null,
+                offset: 0,
+                limit: null,
+                where: null,
+                values: null,
+                order: null,
+                set: null,
+            }, query), resolve, reject);
         });
     }
 }

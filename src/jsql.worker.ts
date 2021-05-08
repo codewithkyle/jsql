@@ -20,7 +20,11 @@ class JSQLWorker {
                     await this.init(data);
                     break;
                 case "query":
+                    // TODO: handle query object
+                    break;
+                case "sql":
                     response = await this.queryBuilder(data);
+                    // TODO: handle query object
                     break;
                 default:
                     console.warn(`Invalid JSQL Worker message type: ${type}`);
