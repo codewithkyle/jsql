@@ -102,30 +102,97 @@ class JSQLWorker {
     }
 
     private async performQuery(query:Query):Promise<Array<any>>{
-        let rows = [];
+        console.log(query);
+        let output = [];
         switch(query.type){
             case "SELECT":
-                rows = await this.db.getAll(query.table);
-                if (query.columns.length && query.columns[0] !== "*"){
-                    rows = this.filterColumns(query, rows);
+                output = await this.db.getAll(query.table);
+                if (query.function !== null){
+                    output = this.handleSelectFunction(query, output);
                 }
-                if (query.order !== null){
-                    this.sort(query, rows);
-                }
-                if (query.limit !== null){
-                    rows = rows.splice(query.offset, query.limit);
+                else {
+                    if (query.columns.length && query.columns[0] !== "*"){
+                        output = this.filterColumns(query, output);
+                    }
+                    if (query.order !== null){
+                        this.sort(query, output);
+                    }
+                    if (query.limit !== null){
+                        output = output.splice(query.offset, query.limit);
+                    }
                 }
                 break;
             case "INSERT":
                 for (const row of query.values){
                     await this.db.put(query.table, row);
                 }
-                rows = query.values;
+                output = query.values;
                 break;
             default:
                 break;
         }
-        return rows;
+        return output;
+    }
+
+    private handleSelectFunction(query:Query, rows:Array<any>){
+        let output;
+        switch(query.function){
+            case "MIN":
+                let min;
+                for (let i = 0; i < rows.length; i++){
+                    let value = rows[i]?.[query.columns[0]] ?? 0;
+                    if (i === 0){
+                        min = value;
+                    } else {
+                        if (value < min){
+                            min = value;
+                        }
+                    }
+                }
+                output = min;
+                break;
+            case "MAX":
+                let max;
+                for (let i = 0; i < rows.length; i++){
+                    let value = rows[i]?.[query.columns[0]] ?? 0;
+                    if (i === 0){
+                        max = value;
+                    } else {
+                        if (value > max){
+                            max = value;
+                        }
+                    }
+                }
+                output = max;
+                break;
+            case "SUM":
+                output = 0;
+                for (let i = 0; i < rows.length; i++){
+                    let value = rows[i]?.[query.columns[0]] ?? 0;
+                    if (isNaN(value) || !isFinite(value)){
+                        value = 0;
+                    }
+                    output += value;
+                }
+                break;
+            case "AVG":
+                let total = 0;
+                for (let i = 0; i < rows.length; i++){
+                    let value = rows[i]?.[query.columns[0]] ?? 0;
+                    if (isNaN(value) || !isFinite(value)){
+                        value = 0;
+                    }
+                    total += value;
+                }
+                output = total / rows.length;
+                break;
+            case "COUNT":
+                output = rows.length;
+                break;
+            default:
+                break;
+        }
+        return output;
     }
 
     private sort(query:Query, rows:Array<any>){
