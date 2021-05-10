@@ -48,7 +48,8 @@
             try{
                 const value = input.value;
                 const output = await db.query(value, {
-                    newName: "Frank",
+                    creatureCost: 4,
+                    artifactCost: 0,
                 });
                 console.log(output);
             } catch (e) {

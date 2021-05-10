@@ -19,16 +19,20 @@ export type Column = {
 export type SQLFunction = "COUNT" | "AVG" | "MIN" | "MAX" | "SUM";
 export type SQLStatement = "SELECT" | "UPDATE" | "DELETE" | "INSERT";
 
+export type Check = {
+    type: number, // 0 = exclude, 1 = include
+    columns: {
+        [column:string]: Array<any>,
+    },
+};
+export type Condition = Array<Check>;
+
 export type Query = {
     type: SQLStatement,
     function: SQLFunction,
     table: string,
     columns: Array<string>,
-    where: Array<{
-        type: "INCLUDE" | "EXCLUDE",
-        column: string,
-        values: Array<any>,
-    }>,
+    where: Array<Condition>,
     limit: number,
     offset: number,
     order: {

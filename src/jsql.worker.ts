@@ -1,4 +1,4 @@
-import type { Table, Schema, Column, Query, SQLFunction } from "../jsql";
+import type { Table, Schema, Column, Query, SQLFunction, Condition, Check } from "../jsql";
 import { openDB, deleteDB } from "./lib/idb";
 
 class JSQLWorker {
@@ -107,6 +107,9 @@ class JSQLWorker {
         switch(query.type){
             case "SELECT":
                 output = await this.db.getAll(query.table);
+                if (query.where !== null){
+                    output = this.handleWhere(query, output);
+                }
                 if (query.function !== null){
                     output = this.handleSelectFunction(query, output);
                 }
@@ -131,6 +134,85 @@ class JSQLWorker {
             default:
                 break;
         }
+        return output;
+    }
+
+    private handleWhere(query:Query, rows:Array<any>):Array<any>{
+        let output = [];
+        return rows;
+        // for (let r = 0; r < rows.length; r++){
+        //     const row = rows[r];
+        //     let requiredValidPasses = query.where.length;
+        //     let validPasses = 0;
+        //     for (let w = 0; w < query.where.length; w++){
+        //         switch(query.where[w].type){
+        //             case "INCLUDE":
+        //                 for (let v = 0; v < query.where[w].values.length; v++){
+        //                     if (query.where[w].column in row){
+        //                         if (query.where[w].values[v] === row[query.where[w].column]){
+        //                             validPasses++;
+        //                             break;
+        //                         }
+        //                     } else {
+        //                         break;
+        //                     }
+        //                 }
+        //                 break;
+        //             case "EXCLUDE":
+        //                 let matchedOneValue = false;
+        //                 for (let v = 0; v < query.where[w].values.length; v++){
+        //                     if (query.where[w].column in row){
+        //                         if (query.where[w].values[v] === row[query.where[w].column]){
+        //                             matchedOneValue = true;
+        //                             break;
+        //                         }
+        //                     } else {
+        //                         validPasses++;
+        //                         break;
+        //                     }
+        //                 }
+        //                 if (!matchedOneValue){
+        //                     validPasses++;
+        //                 }
+        //                 break;
+        //             default:
+        //                 break;
+        //         }
+        //     }
+        //     if (validPasses === requiredValidPasses){
+        //         output.push(row);
+        //     }
+        // }
+        // for (let i = 0; i < query.where.length; i++){
+        //     if (query.where[i].type === "INCLUDE"){
+        //         for (let j = 0; j < rows.length; j++){
+        //             for (let k = 0; k < query.where[i].values.length; k++){
+        //                 if (query.where[i].column in rows[j]){
+        //                     if (query.where[i].values[k] === rows[j][query.where[i].column]){
+        //                         output.push(rows[j]);
+        //                     }
+        //                 } else {
+        //                     break;
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        // for (let i = 0; i < query.where.length; i++){
+        //     if (query.where[i].type === "EXCLUDE"){
+        //         for (let j = output.length - 1; j >= 0; j--){
+        //             for (let k = 0; k < query.where[i].values.length; k++){
+        //                 if (query.where[i].column in output[j]){
+        //                     if (query.where[i].values[k] === output[j][query.where[i].column]){
+        //                         output.splice(j, 1);
+        //                     }
+        //                 } else {
+        //                     break;
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
         return output;
     }
 
@@ -358,6 +440,142 @@ class JSQLWorker {
         return query;
     }
 
+    private breakSubgroups(statement:string, output = []){
+        let openAt = -1;
+        let closeAt = -1;
+        let totalOpen = 0;
+        for (let c = statement.length - 1; c >= 0; c--){
+            switch (statement[c]){
+                case "(":
+                    totalOpen--;
+                    if (totalOpen === 0){
+                        openAt = c;
+                    }
+                    break;
+                case ")":
+                    totalOpen++;
+                    if (closeAt === -1){
+                        closeAt = c;
+                    }
+                    break;
+                default:
+                    break;
+            }
+            if (openAt !== -1){
+                const snippet = statement.slice(openAt, closeAt + 1);
+                statement = statement.replace(snippet, "").trim();
+                output.push(snippet.replace(/^\(|\)$/g, "").trim());
+                break;
+            }
+        }
+        if (statement.indexOf("(") !== -1){
+            output = this.breakSubgroups(statement, output);
+        }
+        return output;
+    }
+
+    private buildConditionCheck(check:Check, statement):Check{
+        if (statement.indexOf(" OR ") === -1)
+        {
+            if (statement.indexOf("NOT ") === 0)
+            {
+                check.type = 0;
+                const values = statement.replace(/^(NOT)/, "").trim().split("=");
+                if (values.length !== 2){
+                    throw `Invalid syntax at: ${check}`;
+                }
+                const column = values[0].trim();
+                const value = values[1].trim();
+                if (column in check.columns){
+                    check.columns[column].push(value);
+                } else {
+                    check.columns[column] = [value];
+                }
+            } 
+            else if (statement.indexOf("IS NOT NULL") !== -1)
+            {
+                const column = statement.replace("IS NOT NULL", "").trim();
+                const value = null;
+                if (column in check.columns){
+                    check.columns[column].push(value);
+                } else {
+                    check.columns[column] = [value];
+                }
+            }
+            else
+            {
+                const values = statement.trim().replace(/\'|\"/g, "").split("=");
+                if (values.length !== 2){
+                    throw `Invalid syntax at: ${check}`;
+                }
+                const column = values[0].trim();
+                const value = values[1].trim();
+                if (column in check.columns){
+                    check.columns[column].push(value);
+                } else {
+                    check.columns[column] = [value];
+                }
+            }
+        }
+        else
+        {
+            const conditionSegments = statement.split(" OR ");
+            for (let i = 0; i < conditionSegments.length; i++){
+                const values = conditionSegments[i].trim().replace(/\'|\"/g, "").split("=");
+                if (values.length !== 2){
+                    throw `Invalid syntax at: ${check}`;
+                }
+                const column = values[0].trim();
+                const value = values[1].trim();
+                if (column in check.columns){
+                    check.columns[column].push(value);
+                } else {
+                    check.columns[column] = [value];
+                }
+            }
+        }
+        return check;
+    }
+
+    private buildConditions(conditions):Condition{
+        const condition:Condition = [];
+        for (let i = 0; i < conditions.length; i++){
+            let check:Check = {
+                type: 1,
+                columns: {},
+            };
+            if (Array.isArray(conditions[i])){
+                for (let c = 0; c < conditions[i].length; c++){
+                    check = this.buildConditionCheck(check, conditions[i][c]);
+                }
+            } else {
+                check = this.buildConditionCheck(check, conditions[i]);
+            }
+            condition.push(check);
+        }
+        return condition;
+    }
+
+    private parseConditions(statement:string, groups:Array<string>, conditions = []):Array<any>{
+        if (statement.indexOf(" AND ") !== -1){
+            const checks = statement.split(" AND ");
+            const conditionGroup = [];
+            for (let c = 0; c < checks.length; c++){
+                if (checks[c].indexOf("(") === -1){
+                    conditionGroup.push(checks[c]);
+                } else {
+                    const subgroupIndex = checks[c].match(/\d+/)[0];
+                    statement = checks[c].replace(`(${subgroupIndex})`, groups[subgroupIndex]).trim();
+                    conditions = this.parseConditions(statement, groups, conditions);
+                }
+            }
+            conditions.push(conditionGroup);
+        } else {
+            conditions.push(statement);
+        }
+        return conditions;
+    }
+
     private parseWhereSegment(segments:Array<string>, query:Query, params:any):Query{
         if (segments.length < 2)
         {
@@ -367,72 +585,82 @@ class JSQLWorker {
         {
             query.where = [];
             segments.splice(0, 1);
-            const conditions = segments.join(" ").trim().split(" AND ");
-            for (let i = 0; i < conditions.length; i++){
-                const condition = conditions[i].trim();
-                if (condition.indexOf(" OR ") === -1){
-                    if (condition.indexOf("NOT ") === 0){
-                        const values = condition.replace(/^(NOT)/, "").trim().split("=");
-                        if (values.length !== 2){
-                            throw `Invalid syntax at: ${condition}`;
+            const groups = [];
+            let openParentheses = 0;
+            for (let i = segments.length - 1; i >= 0; i--){
+                let index = -1;
+                openParentheses += (segments[i].match(/\)/g) || []).length;
+                openParentheses -= (segments[i].match(/\(/g) || []).length;
+                switch (segments[i]){
+                    case "OR":
+                        if (openParentheses === 0){
+                            index = i;
                         }
-                        query.where.push({
-                            type: "EXCLUDE",
-                            column: values[0].trim(),
-                            values: [values[1].trim().replace(/^[\"\']|[\"\']$/g, "")],
-                        });
-                    } 
-                    else if (condition.indexOf("IS NOT NULL") !== -1){
-                        const column = condition.replace("IS NOT NULL", "").trim();
-                        query.where.push({
-                            type: "EXCLUDE",
-                            column: column,
-                            values: [null],
-                        });
-                    } else {
-                        const values = condition.trim().replace(/\'|\"/g, "").split("=");
-                        if (values.length !== 2){
-                            throw `Invalid syntax at: ${condition}`;
+                        break;
+                    default:
+                        break;
+                }
+                if (index !== -1){
+                    groups.push(segments.splice(index, segments.length));
+                } else if (i === 0){
+                    groups.push(segments.splice(0, segments.length));
+                }
+            }
+
+            groups.reverse();
+
+            for (let i = 0; i < groups.length; i++){
+                let statement = groups[i].join(" ").trim();
+                const subgroups = this.breakSubgroups(statement);
+                if (subgroups.length){
+                    for (let s = 0; s < subgroups.length; s++){
+                        statement = statement.replace(subgroups[s], `${s}`).trim();
+                        if (subgroups[s].indexOf("(") !== -1){
+                            throw `Invalid syntax at: ${subgroups[s]}. Nested parenthesis are not currently supported.`;
                         }
-                        query.where.push({
-                            type: "INCLUDE",
-                            column: values[0].trim(),
-                            values: [values[1].trim().replace(/^[\"\']|[\"\']$/g, "")],
-                        });
                     }
+                    groups.splice(i, 1, {
+                        statement: statement,
+                        groups: subgroups,
+                    });
                 } else {
-                    const conditionSegments = condition.split(" OR ");
-                    const result = {
-                        type: "INCLUDE",
-                        column: null,
-                        values: [],
-                    };
-                    for (let i = 0; i < conditionSegments.length; i++){
-                        const values = conditionSegments[i].trim().replace(/\'|\"/g, "").split("=");
-                        if (values.length !== 2){
-                            throw `Invalid syntax at: ${condition}`;
+                    groups.splice(i, 1, {
+                        statement: statement.replace(/^(OR)/, "").trim(),
+                        groups: [],
+                    });
+                }
+            }
+
+            const conditions = [];
+            for (let i = 0; i < groups.length; i++){
+                const condition = this.parseConditions(groups[i].statement, groups[i].groups);
+                conditions.push(condition);
+            }
+            for (let i = 0; i < conditions.length; i++){
+                const condition = this.buildConditions(conditions[i]);
+                query.where.push(condition);
+            }
+
+            for (let i = 0; i < query.where.length; i++){
+                for (let j = 0; j < query.where[i].length; j++){
+                    for (const column in query.where[i][j].columns){
+                        for (let v = 0; v < query.where[i][j].columns[column].length; v++){
+                            const value = query.where[i][j].columns[column][v];
+                            if (value.indexOf("$") !== -1){
+                                const key = query.where[i][j].columns[column][v].slice(1);
+                                if (key in params){
+                                    query.where[i][j].columns[column][v] = params[key];
+                                } else {
+                                    throw `Invalid params. Missing key: ${key}`;
+                                }
+                            }
                         }
-                        result.column = values[0].trim();
-                        result.values.push(values[1].trim());
-                    }
-                    // @ts-ignore
-                    query.where.push(result);
-                }
-            }
-        }
-        for (let i = 0; i < query.where.length; i++){
-            for (let j = 0; j < query.where[i].values.length; j++){
-                if (query.where[i].values[j].indexOf("$") === 0){
-                    const key = query.where[i].values[j].substring(1, query.where[i].values[j].length);
-                    if (key in params){
-                        query.where[i].values[j] = params[key];
-                    } else {
-                        throw `Invalid params. Missing key: ${key}`;
                     }
                 }
             }
+            
+            return query;
         }
-        return query;
     }
 
     private parseOrderBySegment(segments:Array<string>, query:Query):Query{
@@ -556,6 +784,10 @@ class JSQLWorker {
             let index = -1;
             for (let i = textNodes.length - 1; i >= 0; i--){
                 switch(textNodes[i].toUpperCase()){
+                    case "UNION":
+                        throw `Invalid syntax: UNION operator is not currently supported.`
+                    case "JOIN":
+                        throw `Invalid syntax: JOIN clause is not currently supported.`
                     case "SET":
                         index = i;
                         break;
