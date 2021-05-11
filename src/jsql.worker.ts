@@ -102,7 +102,6 @@ class JSQLWorker {
     }
 
     private async performQuery(query:Query):Promise<Array<any>>{
-        console.log(query);
         let output = [];
         switch(query.type){
             case "SELECT":
@@ -139,80 +138,82 @@ class JSQLWorker {
 
     private handleWhere(query:Query, rows:Array<any>):Array<any>{
         let output = [];
-        return rows;
-        // for (let r = 0; r < rows.length; r++){
-        //     const row = rows[r];
-        //     let requiredValidPasses = query.where.length;
-        //     let validPasses = 0;
-        //     for (let w = 0; w < query.where.length; w++){
-        //         switch(query.where[w].type){
-        //             case "INCLUDE":
-        //                 for (let v = 0; v < query.where[w].values.length; v++){
-        //                     if (query.where[w].column in row){
-        //                         if (query.where[w].values[v] === row[query.where[w].column]){
-        //                             validPasses++;
-        //                             break;
-        //                         }
-        //                     } else {
-        //                         break;
-        //                     }
-        //                 }
-        //                 break;
-        //             case "EXCLUDE":
-        //                 let matchedOneValue = false;
-        //                 for (let v = 0; v < query.where[w].values.length; v++){
-        //                     if (query.where[w].column in row){
-        //                         if (query.where[w].values[v] === row[query.where[w].column]){
-        //                             matchedOneValue = true;
-        //                             break;
-        //                         }
-        //                     } else {
-        //                         validPasses++;
-        //                         break;
-        //                     }
-        //                 }
-        //                 if (!matchedOneValue){
-        //                     validPasses++;
-        //                 }
-        //                 break;
-        //             default:
-        //                 break;
-        //         }
-        //     }
-        //     if (validPasses === requiredValidPasses){
-        //         output.push(row);
-        //     }
-        // }
-        // for (let i = 0; i < query.where.length; i++){
-        //     if (query.where[i].type === "INCLUDE"){
-        //         for (let j = 0; j < rows.length; j++){
-        //             for (let k = 0; k < query.where[i].values.length; k++){
-        //                 if (query.where[i].column in rows[j]){
-        //                     if (query.where[i].values[k] === rows[j][query.where[i].column]){
-        //                         output.push(rows[j]);
-        //                     }
-        //                 } else {
-        //                     break;
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-        // for (let i = 0; i < query.where.length; i++){
-        //     if (query.where[i].type === "EXCLUDE"){
-        //         for (let j = output.length - 1; j >= 0; j--){
-        //             for (let k = 0; k < query.where[i].values.length; k++){
-        //                 if (query.where[i].column in output[j]){
-        //                     if (query.where[i].values[k] === output[j][query.where[i].column]){
-        //                         output.splice(j, 1);
-        //                     }
-        //                 } else {
-        //                     break;
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
+        console.log(query.where);
+        for (let r = 0; r < rows.length; r++){
+            const row = rows[r];
+            let hasOneValidCondition = false;
+            for (let c = 0; c < query.where.length; c++){
+                const condition = query.where[c];
+                let passes = 0;
+                for (let k = 0; k < condition.length; k++){
+                    const check = condition[k];
+                    for (const column in check.columns){
+                        let match = false;
+                        for (let v = 0; v < check.columns[column].length; v++){
+                            const value = check.columns[column][v];
+                            if (check.type){
+                                switch(typeof row[column]){
+                                    case "object":
+                                        if (Array.isArray(row[column])){
+                                            if (row[column].includes(value)){
+                                                passes++;
+                                                match = true;
+                                            }
+                                        } else if (value in row[column]){
+                                            passes++;
+                                            match = true;
+                                        }
+                                        break;
+                                    case "undefined":
+                                        throw `Invalid query. ${query.table} does not contain column ${column}`;
+                                    default:
+                                        if (row[column] === value){
+                                            passes++;
+                                            match = true;
+                                        }
+                                        break;
+                                }
+                            } else {
+                                switch(typeof row[column]){
+                                    case "object":
+                                        if (Array.isArray(row[column])){
+                                            if (!row[column].includes(value)){
+                                                passes++;
+                                                match = true;
+                                            }
+                                        } else if (typeof row[column][value] === "undefined"){
+                                            passes++;
+                                            match = true;
+                                        }
+                                        break;
+                                    case "undefined":
+                                        throw `Invalid query. ${query.table} does not contain column ${column}`;
+                                    default:
+                                        if (row[column] !== value){
+                                            passes++;
+                                            match = true;
+                                        }
+                                        break;
+                                }
+                            }
+                            if (match){
+                                break;
+                            }
+                        }
+                        if (match){
+                            break;
+                        }
+                    }
+                }
+                if (passes === condition.length){
+                    hasOneValidCondition = true;
+                    break;
+                }
+            }
+            if (hasOneValidCondition){
+                output.push(row);
+            }
+        }
         return output;
     }
 
@@ -559,17 +560,15 @@ class JSQLWorker {
     private parseConditions(statement:string, groups:Array<string>, conditions = []):Array<any>{
         if (statement.indexOf(" AND ") !== -1){
             const checks = statement.split(" AND ");
-            const conditionGroup = [];
             for (let c = 0; c < checks.length; c++){
                 if (checks[c].indexOf("(") === -1){
-                    conditionGroup.push(checks[c]);
+                    conditions.push(checks[c]);
                 } else {
                     const subgroupIndex = checks[c].match(/\d+/)[0];
                     statement = checks[c].replace(`(${subgroupIndex})`, groups[subgroupIndex]).trim();
                     conditions = this.parseConditions(statement, groups, conditions);
                 }
             }
-            conditions.push(conditionGroup);
         } else {
             conditions.push(statement);
         }
