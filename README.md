@@ -24,11 +24,12 @@ import db from "https://cdn.jsdelivr.net/npm/@codewithkyle/jsql@1/jsql.js";
 // Start the database
 db.start();
 
-// Custom `scheam.json` file URL
-db.start("/path/to/scheam/file.json");
-
-// Self hosted worker script
-db.start("/scheam.json", "/js/jsql.worker.js");
+// Override file URLs
+db.start({
+    scheam: "/scheam.json", // default
+    dbWorker: "/js/jsql.worker.js", // defaults to CDN
+    streamWorker: "/js/stream.worker.js", // defaults to CDN
+});
 ```
 
 ## Writing Queries
@@ -83,7 +84,7 @@ db.raw({
 interface Settings {
     schema: string,
     dbWorker: string,
-    streamParserWorker: string,
+    streamWorker: string,
 }
 
 interface Schema {
