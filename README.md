@@ -138,21 +138,23 @@ interface Query {
 ## Roadmap
 
 - [x] Basic SQL queries
-    - [x] SELECT
-    - [x] DELETE
-    - [x] INSERT INTO
-    - [x] UPDATE
-- [x] Simple WHERE (column = value, AND, OR, single layer parentheses groups)
-- [x] LIMIT
-- [x] OFFSET
+    - [x] `SELECT`
+    - [x] `DELETE`
+    - [x] `INSERT INTO`
+    - [x] `UPDATE`
+- [x] Simple `WHERE` (column = value, AND, OR, single layer parentheses groups)
+- [x] `LIMIT`
+- [x] `OFFSET`
 - [x] Functions
-    - [x] COUNT
-    - [x] MIN
-    - [x] MAX
-    - [x] AVG
-    - [x] SUM
+    - [x] `COUNT()`
+    - [x] `MIN()`
+    - [x] `MAX()`
+    - [x] `AVG()`
+    - [x] `SUM()`
 - [x] Parameter injection
-- [ ] JOIN
-- [ ] Advanced WHERE (nested parentheses, greater than (or equal to), less than (or equal to))
+- [ ] `JOIN` clause
+- [ ] Advanced `WHERE` (nested parentheses, greater than (or equal to), less than (or equal to))
 - [ ] LIKE (`SELECT name FROM users WHERE name LIKE $query LIMIT 10`)
 - [ ] RESET (`RESET *` to clear all tables or `RESET users` to clear one table)
+- [ ] `ALL` and `ANY` operators
+- [ ] `SELECT DISTINCT` statements
