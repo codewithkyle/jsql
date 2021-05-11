@@ -113,24 +113,31 @@ class JSQLWorker {
             const query = queries[i];
             let output = [];
             switch(query.type){
-                case "SELECT":
+                case "UPDATE":
                     output = await this.db.getAll(query.table);
                     if (query.where !== null){
                         output = this.handleWhere(query, output);
                     }
-                    if (query.function !== null){
-                        output = this.handleSelectFunction(query, output);
+                    let transactions = [];
+                    for (const row of output){
+                        let dirty = false;
+                        for (const column in query.set){
+                            if (column in row){
+                                row[column] = query.set[column];
+                            }
+                        }
+                        if (dirty){
+                            transactions.push(this.db.put(query.table, row));
+                        }
                     }
-                    else {
-                        if (query.columns.length && query.columns[0] !== "*"){
-                            output = this.filterColumns(query, output);
-                        }
-                        if (query.order !== null){
-                            this.sort(query, output);
-                        }
-                        if (query.limit !== null){
-                            output = output.splice(query.offset, query.limit);
-                        }
+                    await Promise.all(transactions);
+                    break;
+                case "DELETE":
+                    break;
+                case "SELECT":
+                    output = await this.db.getAll(query.table);
+                    if (query.where !== null){
+                        output = this.handleWhere(query, output);
                     }
                     break;
                 case "INSERT":
@@ -141,6 +148,21 @@ class JSQLWorker {
                     break;
                 default:
                     break;
+            }
+            if (query.type === "SELECT"){
+                if (query.function !== null){
+                    output = this.handleSelectFunction(query, output);
+                } else {
+                    if (query.columns.length && query.columns[0] !== "*"){
+                        output = this.filterColumns(query, output);
+                    }
+                    if (query.order !== null){
+                        this.sort(query, output);
+                    }
+                    if (query.limit !== null){
+                        output = output.splice(query.offset, query.limit);
+                    }
+                }
             }
             if (output.length){
                 rows = [...rows, ...output];
@@ -340,7 +362,7 @@ class JSQLWorker {
         };
         for (let i = segments.length - 1; i >= 0; i--){
             const segment = segments[i].join(" ");
-            if (segment.indexOf("+") !== -1 || segment.indexOf("-") !== -1 || segment.indexOf("*") !== -1 && segment.indexOf("SELECT") !== 0 || segment.indexOf("/") !== -1 || segment.indexOf("%") !== -1){
+            if (segment.indexOf("+") !== -1 || segment.indexOf("*") !== -1 && segment.indexOf("SELECT") !== 0 || segment.indexOf("/") !== -1 || segment.indexOf("%") !== -1){
                 throw `Invalid syntax. Arithmetic operators are not currently supported ${segment}`;
             } else if (segment.indexOf("&") !== -1 || segment.indexOf("|") !== -1 || segment.indexOf("^") !== -1){
                 throw `Invalid syntax. Bitwise operators are not currently supported`;
