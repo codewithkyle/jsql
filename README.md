@@ -153,5 +153,5 @@ interface Query {
 - [x] Parameter injection
 - [ ] JOIN
 - [ ] Advanced WHERE (nested parentheses, greater than (or equal to), less than (or equal to))
-- [ ] LIKE
+- [ ] LIKE (`SELECT name FROM users WHERE name LIKE $query LIMIT 10`)
 - [ ] RESET (`RESET *` to clear all tables or `RESET users` to clear one table)
