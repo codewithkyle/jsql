@@ -112,11 +112,20 @@ class JSQLWorker {
         for (let i = 0; i < queries.length; i++){
             const query = queries[i];
             let output = [];
+            let skipWhere = false;
+            if (query.type !== "INSERT"){
+                // Optimize IDB query when we are only looking for 1 value from 1 column
+                if (query.where !== null && query.where.length === 1 && query.where[0].length === 1 && Object.keys(query.where[0][0].columns).length === 1 && query.where[0][0].columns[Object.keys(query.where[0][0].columns)[0]].length === 1){
+                    skipWhere = true;
+                    output = await this.db.getAllFromIndex(query.table, Object.keys(query.where[0][0].columns)[0], query.where[0][0].columns[Object.keys(query.where[0][0].columns)[0]][0]);
+                } else {
+                    output = await this.db.getAll(query.table);
+                }
+            }
             const transactions = [];
             switch(query.type){
                 case "UPDATE":
-                    output = await this.db.getAll(query.table);
-                    if (query.where !== null){
+                    if (query.where !== null && !skipWhere){
                         output = this.handleWhere(query, output);
                     }
                     for (let r = 0; r < output.length; r++){
@@ -133,8 +142,7 @@ class JSQLWorker {
                     await Promise.all(transactions);
                     break;
                 case "DELETE":
-                    output = await this.db.getAll(query.table);
-                    if (query.where !== null){
+                    if (query.where !== null && !skipWhere){
                         output = this.handleWhere(query, output);
                     }
                     const key = this.getTableKey(query.table);
@@ -144,8 +152,7 @@ class JSQLWorker {
                     await Promise.all(transactions);
                     break;
                 case "SELECT":
-                    output = await this.db.getAll(query.table);
-                    if (query.where !== null){
+                    if (query.where !== null && !skipWhere){
                         output = this.handleWhere(query, output);
                     }
                     break;

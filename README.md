@@ -154,3 +154,4 @@ interface Query {
 - [ ] JOIN
 - [ ] Advanced WHERE (nested parentheses, greater than (or equal to), less than (or equal to))
 - [ ] LIKE
+- [ ] RESET (`RESET *` to clear all tables or `RESET users` to clear one table)
