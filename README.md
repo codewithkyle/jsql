@@ -1,6 +1,6 @@
 # JSQL
 
-Access IndexedDB data using SQL queries.
+Access IndexedDB with SQL.
 
 ## Installation
 
