@@ -147,8 +147,13 @@ class JSQLWorker {
                 let passes = 0;
                 for (let k = 0; k < condition.length; k++){
                     const check = condition[k];
+                    let checksPassed = 0;
+                    let checksNeeded = 0;
                     for (const column in check.columns){
                         let match = false;
+                        if (check.type === 0){
+                            checksNeeded += check.columns[column].length;
+                        }
                         for (let v = 0; v < check.columns[column].length; v++){
                             const value = check.columns[column][v];
                             if (check.type){
@@ -178,20 +183,17 @@ class JSQLWorker {
                                     case "object":
                                         if (Array.isArray(row[column])){
                                             if (!row[column].includes(value)){
-                                                passes++;
-                                                match = true;
+                                                checksPassed++;
                                             }
-                                        } else if (typeof row[column][value] === "undefined"){
-                                            passes++;
-                                            match = true;
+                                        } else if (value === null && typeof row[column] === "undefined"){
+                                            checksPassed++;
                                         }
                                         break;
                                     case "undefined":
                                         throw `Invalid query. ${query.table} does not contain column ${column}`;
                                     default:
                                         if (row[column] !== value){
-                                            passes++;
-                                            match = true;
+                                            checksPassed++;
                                         }
                                         break;
                                 }
@@ -203,6 +205,9 @@ class JSQLWorker {
                         if (match){
                             break;
                         }
+                    }
+                    if (check.type === 0 && checksPassed === checksNeeded){
+                        passes++;
                     }
                 }
                 if (passes === condition.length){
