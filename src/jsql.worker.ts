@@ -138,7 +138,6 @@ class JSQLWorker {
 
     private handleWhere(query:Query, rows:Array<any>):Array<any>{
         let output = [];
-        console.log(query.where);
         for (let r = 0; r < rows.length; r++){
             const row = rows[r];
             let hasOneValidCondition = false;
@@ -313,6 +312,7 @@ class JSQLWorker {
     }
 
     private async buildQuery({ sql, params }):Promise<Query>{
+        sql = sql.replace(/\-\-.*|\;$/g, "").trim();
         const segments:Array<Array<string>> = this.parseSegments(sql);
         let query:Query = {
             type: null,
@@ -327,6 +327,14 @@ class JSQLWorker {
             set: null,
         };
         for (let i = segments.length - 1; i >= 0; i--){
+            const segment = segments[i].join(" ");
+            if (segment.indexOf("+") !== -1 || segment.indexOf("-") !== -1 || segment.indexOf("*") !== -1 && segment.indexOf("SELECT") !== 0 || segment.indexOf("/") !== -1 || segment.indexOf("%") !== -1){
+                throw `Invalid syntax. Arithmetic operators are not currently supported ${segment}`;
+            } else if (segment.indexOf("&") !== -1 || segment.indexOf("|") !== -1 || segment.indexOf("^") !== -1){
+                throw `Invalid syntax. Bitwise operators are not currently supported`;
+            } else if (segment.indexOf(">") !== -1 || segment.indexOf("<") !== -1 || segment.indexOf("<>") !== -1 || segment.indexOf(">=") !== -1 || segment.indexOf("<=") !== -1){
+                throw `Invalid syntax. Only the 'equal to' operator is currently supported`;
+            }
             switch(segments[i][0]){
                 case "SET":
                     query = this.parseSetSegment(segments[i], query, params ?? {})
@@ -485,7 +493,6 @@ class JSQLWorker {
             check.type = 0;
             statement = statement.replace(/^(NOT)/, "").trim();
         }
-        console.log(statement);
         if (statement.indexOf(" OR ") === -1)
         {
             if (statement.indexOf("NOT ") === 0)
@@ -792,6 +799,8 @@ class JSQLWorker {
             let index = -1;
             for (let i = textNodes.length - 1; i >= 0; i--){
                 switch(textNodes[i].toUpperCase()){
+                    case "HAVING":
+                        throw `Invalid syntax: HAVING clause is not currently supported.`
                     case "UNION":
                         throw `Invalid syntax: UNION operator is not currently supported.`
                     case "JOIN":
