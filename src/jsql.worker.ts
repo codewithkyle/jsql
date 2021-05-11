@@ -112,27 +112,36 @@ class JSQLWorker {
         for (let i = 0; i < queries.length; i++){
             const query = queries[i];
             let output = [];
+            const transactions = [];
             switch(query.type){
                 case "UPDATE":
                     output = await this.db.getAll(query.table);
                     if (query.where !== null){
                         output = this.handleWhere(query, output);
                     }
-                    let transactions = [];
-                    for (const row of output){
+                    for (let r = 0; r < output.length; r++){
                         let dirty = false;
                         for (const column in query.set){
-                            if (column in row){
-                                row[column] = query.set[column];
+                            if (column in output[r]){
+                                output[r][column] = query.set[column];
                             }
                         }
                         if (dirty){
-                            transactions.push(this.db.put(query.table, row));
+                            transactions.push(this.db.put(query.table, output[r]));
                         }
                     }
                     await Promise.all(transactions);
                     break;
                 case "DELETE":
+                    output = await this.db.getAll(query.table);
+                    if (query.where !== null){
+                        output = this.handleWhere(query, output);
+                    }
+                    const key = this.getTableKey(query.table);
+                    for (let r = 0; r < output.length; r++){
+                        transactions.push(this.db.delete(query.table, output[r][key]));
+                    }
+                    await Promise.all(transactions);
                     break;
                 case "SELECT":
                     output = await this.db.getAll(query.table);
@@ -170,6 +179,19 @@ class JSQLWorker {
         }
         return rows;
     }
+
+    private getTableKey(table: string) {
+		let key = "id";
+		for (let i = 0; i < this.tables.length; i++) {
+			if (this.tables[i].name === table) {
+				if (this.tables[i]?.keyPath) {
+					key = this.tables[i].keyPath;
+				}
+				break;
+			}
+		}
+		return key;
+	}
 
     private handleWhere(query:Query, rows:Array<any>):Array<any>{
         let output = [];
