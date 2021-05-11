@@ -476,12 +476,16 @@ class JSQLWorker {
     }
 
     private buildConditionCheck(check:Check, statement):Check{
+        if (statement.indexOf("NOT ") === 0){
+            check.type = 0;
+            statement = statement.replace(/^(NOT)/, "").trim();
+        }
+        console.log(statement);
         if (statement.indexOf(" OR ") === -1)
         {
             if (statement.indexOf("NOT ") === 0)
             {
-                check.type = 0;
-                const values = statement.replace(/^(NOT)/, "").trim().split("=");
+                const values = statement.split("=");
                 if (values.length !== 2){
                     throw `Invalid syntax at: ${check}`;
                 }
