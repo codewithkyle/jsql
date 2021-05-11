@@ -20,10 +20,16 @@ class JSQLWorker {
                     await this.init(data);
                     break;
                 case "query":
-                    output = await this.performQuery(data);
+                    let customQuery = [];
+                    if (!Array.isArray(data)){
+                        customQuery = [data];
+                    } else {
+                        customQuery = data;
+                    }
+                    output = await this.performQuery(customQuery);
                     break;
                 case "sql":
-                    const query = await this.buildQuery(data);
+                    const query = await this.buildQueriesFromSQL(data);
                     output = await this.performQuery(query);
                     break;
                 default:
@@ -101,39 +107,46 @@ class JSQLWorker {
         return;
     }
 
-    private async performQuery(query:Query):Promise<Array<any>>{
-        let output = [];
-        switch(query.type){
-            case "SELECT":
-                output = await this.db.getAll(query.table);
-                if (query.where !== null){
-                    output = this.handleWhere(query, output);
-                }
-                if (query.function !== null){
-                    output = this.handleSelectFunction(query, output);
-                }
-                else {
-                    if (query.columns.length && query.columns[0] !== "*"){
-                        output = this.filterColumns(query, output);
+    private async performQuery(queries:Array<Query>):Promise<Array<any>>{
+        let rows = [];
+        for (let i = 0; i < queries.length; i++){
+            const query = queries[i];
+            let output = [];
+            switch(query.type){
+                case "SELECT":
+                    output = await this.db.getAll(query.table);
+                    if (query.where !== null){
+                        output = this.handleWhere(query, output);
                     }
-                    if (query.order !== null){
-                        this.sort(query, output);
+                    if (query.function !== null){
+                        output = this.handleSelectFunction(query, output);
                     }
-                    if (query.limit !== null){
-                        output = output.splice(query.offset, query.limit);
+                    else {
+                        if (query.columns.length && query.columns[0] !== "*"){
+                            output = this.filterColumns(query, output);
+                        }
+                        if (query.order !== null){
+                            this.sort(query, output);
+                        }
+                        if (query.limit !== null){
+                            output = output.splice(query.offset, query.limit);
+                        }
                     }
-                }
-                break;
-            case "INSERT":
-                for (const row of query.values){
-                    await this.db.put(query.table, row);
-                }
-                output = query.values;
-                break;
-            default:
-                break;
+                    break;
+                case "INSERT":
+                    for (const row of query.values){
+                        await this.db.put(query.table, row);
+                    }
+                    output = query.values;
+                    break;
+                default:
+                    break;
+            }
+            if (output.length){
+                rows = [...rows, ...output];
+            }
         }
-        return output;
+        return rows;
     }
 
     private handleWhere(query:Query, rows:Array<any>):Array<any>{
@@ -311,8 +324,7 @@ class JSQLWorker {
         return modifiedRows;
     }
 
-    private async buildQuery({ sql, params }):Promise<Query>{
-        sql = sql.replace(/\-\-.*|\;$/g, "").trim();
+    private buildQueryFromStatement(sql, params):Query{
         const segments:Array<Array<string>> = this.parseSegments(sql);
         let query:Query = {
             type: null,
@@ -421,6 +433,17 @@ class JSQLWorker {
             throw `Invalid syntax: OFFSET is not a number.`;
         }
         return query;
+    }
+
+    private async buildQueriesFromSQL({ sql, params }):Promise<Array<Query>>{
+        sql = sql.replace(/\-\-.*|\;$/g, "").trim();
+        const queries:Array<Query> = [];
+        const statements = sql.split(" UNION ");
+        for (let i = 0; i < statements.length; i++){
+            queries.push(this.buildQueryFromStatement(statements[i], params));
+        }
+        console.log(queries);
+        return queries;
     }
 
     private parseSetSegment(segments:Array<string>, query:Query, params:any):Query{

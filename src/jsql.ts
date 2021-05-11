@@ -106,9 +106,10 @@ class JSQLManager {
         });
     }
 
-    public raw(query:Partial<Query>):Promise<any>{
+    public raw(query:Array<Partial<Query>>|Partial<Query>):Promise<any>{
         return new Promise((resolve, reject) => {
-            this.send("query", Object.assign({
+            const queries:Array<Query> = [];
+            const base:Query = {
                 type: null,
                 function: null,
                 table: null,
@@ -119,7 +120,15 @@ class JSQLManager {
                 values: null,
                 order: null,
                 set: null,
-            }, query), resolve, reject);
+            };
+            if (!Array.isArray(query)){
+                query = [query];
+            }
+            for (let i = 0; i < query.length; i++){
+                const temp = {...base};
+                queries.push(Object.assign(temp, query[i]));
+            }
+            this.send("query", queries, resolve, reject);
         });
     }
 
