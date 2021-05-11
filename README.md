@@ -19,7 +19,7 @@ import db from "https://cdn.jsdelivr.net/npm/@codewithkyle/jsql@1/jsql.js";
 ## Getting Started
 
 ```javascript
-import db from "https://cdn.jsdelivr.net/npm/@codewithkyle/jsql@1/jsql.js";
+import db from "@codewithkyle/jsql";
 
 // Start the database
 db.start();
