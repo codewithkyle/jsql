@@ -63,11 +63,14 @@ db.raw({
     columns: ["*"],
     offset: 0,
     limit: null,
-    where: [{
-        type: "INCLUDE",
-        column: "nanme",
-        values: ["Frank"],
-    }],
+    where: [
+        [
+            type: 1,
+            columns: {
+                name: ["Frank"],
+            },
+        ],
+    ],
     values: null,
     order: null,
     set: null,
@@ -130,3 +133,24 @@ interface Query {
     },
 }
 ```
+
+## Roadmap
+
+- [x] Basic SQL queries
+    - [x] SELECT
+    - [x] DELETE
+    - [x] INSERT INTO
+    - [x] UPDATE
+- [x] Simple WHERE (column = value, AND, OR, single layer parentheses groups)
+- [x] LIMIT
+- [x] OFFSET
+- [x] Functions
+    - [x] COUNT
+    - [x] MIN
+    - [x] MAX
+    - [x] AVG
+    - [x] SUM
+- [x] Parameter injection
+- [ ] JOIN
+- [ ] Advanced WHERE (nested parentheses, greater than (or equal to), less than (or equal to))
+- [ ] LIKE
