@@ -21,9 +21,6 @@ import db from "https://cdn.jsdelivr.net/npm/@codewithkyle/jsql@1/jsql.js";
 ```javascript
 import db from "@codewithkyle/jsql";
 
-// Start the database
-db.start();
-
 // Override file URLs
 db.start({
     scheam: "/scheam.json", // default
@@ -55,84 +52,6 @@ db.query("INSERT INTO users VALUES ($user1, $user2)", {
         email: "popartfan18@example.com",
     }
 });
-
-// Build your own query object
-db.raw({
-    type: "SELECT",
-    function: null,
-    table: "users",
-    columns: ["*"],
-    offset: 0,
-    limit: null,
-    where: [
-        [
-            type: 1,
-            columns: {
-                name: ["Frank"],
-            },
-        ],
-    ],
-    values: null,
-    order: null,
-    set: null,
-});
-```
-
-## Interaces
-
-```typescript
-interface Settings {
-    schema: string,
-    dbWorker: string,
-    streamWorker: string,
-}
-
-interface Schema {
-    name: string;
-    version: number;
-    tables: Array<Table>;
-}
-
-interface Table {
-    name: string;
-    columns: Array<Column>;
-    keyPath?: string;
-    autoIncrement?: boolean;
-}
-
-interface Column {
-    key: string;
-    unique?: boolean;
-}
-
-type SQLFunction = "COUNT" | "AVG" | "MIN" | "MAX" | "SUM";
-type SQLStatement = "SELECT" | "UPDATE" | "DELETE" | "INSERT";
-
-interface Check {
-    type: number, // 0 = exclude, 1 = include
-    columns: {
-        [column:string]: Array<any>,
-    },
-};
-export type Condition = Array<Check>;
-
-interface Query {
-    type: SQLStatement,
-    function: SQLFunction,
-    table: string,
-    columns: Array<string>,
-    where: Array<Condition>,
-    limit: number,
-    offset: number,
-    order: {
-        column: string,
-        by: "ASC" | "DESC",
-    },
-    values: Array<any>,
-    set: {
-        [column:string]: any,
-    },
-}
 ```
 
 ## Roadmap
