@@ -17,7 +17,7 @@ export type Column = {
 };
 
 export type SQLFunction = "COUNT" | "AVG" | "MIN" | "MAX" | "SUM";
-export type SQLStatement = "SELECT" | "UPDATE" | "DELETE" | "INSERT";
+export type SQLStatement = "SELECT" | "UPDATE" | "DELETE" | "INSERT" | "RESET";
 
 export type Check = {
     type: number, // 0 = exclude, 1 = include

@@ -113,7 +113,7 @@ class JSQLWorker {
             const query = queries[i];
             let output = [];
             let skipWhere = false;
-            if (query.type !== "INSERT"){
+            if (query.type !== "INSERT" && query.table !== "*"){
                 // Optimize IDB query when we are only looking for 1 value from 1 column
                 if (query.where !== null && query.where.length === 1 && query.where[0].length === 1 && Object.keys(query.where[0][0].columns).length === 1 && query.where[0][0].columns[Object.keys(query.where[0][0].columns)[0]].length === 1){
                     skipWhere = true;
@@ -124,6 +124,17 @@ class JSQLWorker {
             }
             const transactions = [];
             switch(query.type){
+                case "RESET":
+                    if (query.table === "*"){
+                        const clearTransactions = [];
+                        for (let t = 0; t < this.tables.length; t++){
+                            clearTransactions.push(this.db.clear(this.tables[t].name));
+                        }
+                        await Promise.all(clearTransactions);
+                    } else {
+                        await this.db.clear(query.table);
+                    }
+                    break;
                 case "UPDATE":
                     if (query.where !== null && !skipWhere){
                         output = this.handleWhere(query, output);
@@ -391,7 +402,7 @@ class JSQLWorker {
         };
         for (let i = segments.length - 1; i >= 0; i--){
             const segment = segments[i].join(" ");
-            if (segment.indexOf("+") !== -1 || segment.indexOf("*") !== -1 && segment.indexOf("SELECT") !== 0 || segment.indexOf("/") !== -1 || segment.indexOf("%") !== -1){
+            if (segment.indexOf("+") !== -1 || segment.indexOf("/") !== -1 || segment.indexOf("%") !== -1){
                 throw `Invalid syntax. Arithmetic operators are not currently supported ${segment}`;
             } else if (segment.indexOf("&") !== -1 || segment.indexOf("|") !== -1 || segment.indexOf("^") !== -1){
                 throw `Invalid syntax. Bitwise operators are not currently supported`;
@@ -447,6 +458,13 @@ class JSQLWorker {
                     query.table = segments[i][1];
                     query.type = "UPDATE";
                     break;
+                case "RESET":
+                    if (segments[i].length !== 2){
+                        throw `Invalid syntax at: ${segments[i].join(" ")}`
+                    }
+                    query.table = segments[i][1];
+                    query.type = "RESET";
+                    break;
                 default:
                     throw `Invalid syntax at: ${segments[i].join(" ")}`;
             }
@@ -493,7 +511,6 @@ class JSQLWorker {
         for (let i = 0; i < statements.length; i++){
             queries.push(this.buildQueryFromStatement(statements[i], params));
         }
-        console.log(queries);
         return queries;
     }
 
@@ -910,6 +927,9 @@ class JSQLWorker {
                         index = i;
                         break;
                     case "UPDATE":
+                        index = i;
+                        break;
+                    case "RESET":
                         index = i;
                         break;
                     default:

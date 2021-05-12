@@ -20,7 +20,7 @@ class JSQLManager {
         this.settings = {
             schema: `${location.origin}/scheam.json`,
             dbWorker: "https://cdn.jsdelivr.net/npm/@codewithkyle/jsql@1/jsql.worker.js",
-            streamWorker: "https://cdn.jsdelivr.net/npm/@codewithkyle/jsql@1/stream-parser.worker.js",
+            streamWorker: "https://cdn.jsdelivr.net/npm/@codewithkyle/jsql@1/stream.worker.js",
         };
     }
 
@@ -107,6 +107,7 @@ class JSQLManager {
     }
 
     public raw(query:Array<Partial<Query>>|Partial<Query>):Promise<any>{
+        console.warn("JSQL Warning: You are performing an SQL query using the raw() function. This function is designed to be used for testing and debugging purposes only. If you are using this in production just know that the Query object interface can and will introduce breaking changes at any time.")
         return new Promise((resolve, reject) => {
             const queries:Array<Query> = [];
             const base:Query = {
