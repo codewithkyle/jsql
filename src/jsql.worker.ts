@@ -608,21 +608,7 @@ class JSQLWorker {
         }
         if (statement.indexOf(" OR ") === -1)
         {
-            if (statement.indexOf("NOT ") === 0)
-            {
-                const values = statement.split("=");
-                if (values.length !== 2){
-                    throw `Invalid syntax at: ${statement}`;
-                }
-                const column = values[0].trim();
-                const value = values[1].trim();
-                if (column in check.columns){
-                    check.columns[column].push(value);
-                } else {
-                    check.columns[column] = [value];
-                }
-            } 
-            else if (statement.indexOf("IS NOT NULL") !== -1)
+            if (statement.indexOf("IS NOT NULL") !== -1)
             {
                 const column = statement.replace("IS NOT NULL", "").trim();
                 const value = null;
@@ -632,7 +618,8 @@ class JSQLWorker {
                     check.columns[column] = [value];
                 }
             }
-            else if (statement.indexOf(" LIKE ") !== -1){
+            else if (statement.indexOf(" LIKE ") !== -1)
+            {
                 const values = statement.trim().replace(/\'|\"/g, "").split(" LIKE ");
                 if (values.length !== 2){
                     throw `Invalid syntax at: ${statement}`;
