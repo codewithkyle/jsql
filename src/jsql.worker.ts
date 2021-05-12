@@ -1,5 +1,6 @@
 import type { Table, Schema, Column, Query, SQLFunction, Condition, Check } from "../jsql";
-import { openDB, deleteDB } from "./lib/idb";
+import { openDB } from "./lib/idb";
+import Fuse from 'fuse.js';
 
 class JSQLWorker {
     private db:any;
@@ -121,6 +122,21 @@ class JSQLWorker {
                 } else {
                     output = await this.db.getAll(query.table);
                 }
+                if (query.search !== null){
+                    for (const column in query.search){
+                        const fuse = new Fuse(output, {
+                            keys: [column],
+                            ignoreLocation: true,
+                            threshold: 0.0,
+                        });
+                        const results = fuse.search(query.search[column]);
+                        const temp = [];
+                        for (let r = 0; r < results.length; r++){
+                            temp.push(results[r].item);
+                        }
+                        output = temp;
+                    }
+                }
             }
             const transactions = [];
             switch(query.type){
@@ -225,52 +241,57 @@ class JSQLWorker {
                     let checksNeeded = 0;
                     for (const column in check.columns){
                         let match = false;
-                        if (check.type === 0){
+                        if (check.type === "EXCLUDE"){
                             checksNeeded += check.columns[column].length;
                         }
                         for (let v = 0; v < check.columns[column].length; v++){
                             const value = check.columns[column][v];
-                            if (check.type){
-                                switch(typeof row[column]){
-                                    case "object":
-                                        if (Array.isArray(row[column])){
-                                            if (row[column].includes(value)){
+                            switch (check.type){
+                                case "INCLUDE":
+                                    switch(typeof row[column]){
+                                        case "object":
+                                            if (Array.isArray(row[column])){
+                                                if (row[column].includes(value)){
+                                                    passes++;
+                                                    match = true;
+                                                }
+                                            } else if (value in row[column]){
                                                 passes++;
                                                 match = true;
                                             }
-                                        } else if (value in row[column]){
-                                            passes++;
-                                            match = true;
-                                        }
-                                        break;
-                                    case "undefined":
-                                        throw `Invalid query. ${query.table} does not contain column ${column}`;
-                                    default:
-                                        if (row[column] === value){
-                                            passes++;
-                                            match = true;
-                                        }
-                                        break;
-                                }
-                            } else {
-                                switch(typeof row[column]){
-                                    case "object":
-                                        if (Array.isArray(row[column])){
-                                            if (!row[column].includes(value)){
+                                            break;
+                                        case "undefined":
+                                            throw `Invalid query. ${query.table} does not contain column ${column}`;
+                                        default:
+                                            if (row[column] === value){
+                                                passes++;
+                                                match = true;
+                                            }
+                                            break;
+                                    }
+                                    break;
+                                case "EXCLUDE":
+                                    switch(typeof row[column]){
+                                        case "object":
+                                            if (Array.isArray(row[column])){
+                                                if (!row[column].includes(value)){
+                                                    checksPassed++;
+                                                }
+                                            } else if (value === null && typeof row[column] === "undefined"){
                                                 checksPassed++;
                                             }
-                                        } else if (value === null && typeof row[column] === "undefined"){
-                                            checksPassed++;
-                                        }
-                                        break;
-                                    case "undefined":
-                                        throw `Invalid query. ${query.table} does not contain column ${column}`;
-                                    default:
-                                        if (row[column] !== value){
-                                            checksPassed++;
-                                        }
-                                        break;
-                                }
+                                            break;
+                                        case "undefined":
+                                            throw `Invalid query. ${query.table} does not contain column ${column}`;
+                                        default:
+                                            if (row[column] !== value){
+                                                checksPassed++;
+                                            }
+                                            break;
+                                    }
+                                    break;
+                                default:
+                                    break;
                             }
                             if (match){
                                 break;
@@ -280,7 +301,7 @@ class JSQLWorker {
                             break;
                         }
                     }
-                    if (check.type === 0 && checksPassed === checksNeeded){
+                    if (check.type === "EXCLUDE" && checksPassed === checksNeeded){
                         passes++;
                     }
                 }
@@ -399,6 +420,7 @@ class JSQLWorker {
             values: null,
             order: null,
             set: null,
+            search: null,
         };
         for (let i = segments.length - 1; i >= 0; i--){
             const segment = segments[i].join(" ");
@@ -579,9 +601,9 @@ class JSQLWorker {
         return output;
     }
 
-    private buildConditionCheck(check:Check, statement):Check{
+    private buildConditionCheck(check:Check, statement, query:Query):Check{
         if (statement.indexOf("NOT ") === 0){
-            check.type = 0;
+            check.type = "EXCLUDE";
             statement = statement.replace(/^(NOT)/, "").trim();
         }
         if (statement.indexOf(" OR ") === -1)
@@ -590,7 +612,7 @@ class JSQLWorker {
             {
                 const values = statement.split("=");
                 if (values.length !== 2){
-                    throw `Invalid syntax at: ${check}`;
+                    throw `Invalid syntax at: ${statement}`;
                 }
                 const column = values[0].trim();
                 const value = values[1].trim();
@@ -610,11 +632,23 @@ class JSQLWorker {
                     check.columns[column] = [value];
                 }
             }
+            else if (statement.indexOf(" LIKE ") !== -1){
+                const values = statement.trim().replace(/\'|\"/g, "").split(" LIKE ");
+                if (values.length !== 2){
+                    throw `Invalid syntax at: ${statement}`;
+                }
+                const column = values[0].trim();
+                const value = values[1].trim();
+                if (query.search === null){
+                    query.search = {};
+                }
+                query.search[column] = value;
+            }
             else
             {
                 const values = statement.trim().replace(/\'|\"/g, "").split("=");
                 if (values.length !== 2){
-                    throw `Invalid syntax at: ${check}`;
+                    throw `Invalid syntax at: ${statement}`;
                 }
                 const column = values[0].trim();
                 const value = values[1].trim();
@@ -631,7 +665,7 @@ class JSQLWorker {
             for (let i = 0; i < conditionSegments.length; i++){
                 const values = conditionSegments[i].trim().replace(/\'|\"/g, "").split("=");
                 if (values.length !== 2){
-                    throw `Invalid syntax at: ${check}`;
+                    throw `Invalid syntax at: ${statement}`;
                 }
                 const column = values[0].trim();
                 const value = values[1].trim();
@@ -645,21 +679,23 @@ class JSQLWorker {
         return check;
     }
 
-    private buildConditions(conditions):Condition{
+    private buildConditions(conditions, query:Query):Condition{
         const condition:Condition = [];
         for (let i = 0; i < conditions.length; i++){
             let check:Check = {
-                type: 1,
+                type: "INCLUDE",
                 columns: {},
             };
             if (Array.isArray(conditions[i])){
                 for (let c = 0; c < conditions[i].length; c++){
-                    check = this.buildConditionCheck(check, conditions[i][c]);
+                    check = this.buildConditionCheck(check, conditions[i][c], query);
                 }
             } else {
-                check = this.buildConditionCheck(check, conditions[i]);
+                check = this.buildConditionCheck(check, conditions[i], query);
             }
-            condition.push(check);
+            if (Object.keys(check.columns).length){
+                condition.push(check);
+            }
         }
         return condition;
     }
@@ -743,7 +779,7 @@ class JSQLWorker {
                 conditions.push(condition);
             }
             for (let i = 0; i < conditions.length; i++){
-                const condition = this.buildConditions(conditions[i]);
+                const condition = this.buildConditions(conditions[i], query);
                 query.where.push(condition);
             }
 
@@ -760,6 +796,20 @@ class JSQLWorker {
                                     throw `Invalid params. Missing key: ${key}`;
                                 }
                             }
+                        }
+                    }
+                }
+            }
+
+            if (query.search !== null){
+                for (const column in query.search){
+                    const value = query.search[column];
+                    if (value.indexOf("$") !== -1){
+                        const key = query.search[column].slice(1);
+                        if (key in params){
+                            query.search[column] = params[key];
+                        } else {
+                            throw `Invalid params. Missing key: ${key}`;
                         }
                     }
                 }

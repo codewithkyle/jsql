@@ -18,9 +18,10 @@ export type Column = {
 
 export type SQLFunction = "COUNT" | "AVG" | "MIN" | "MAX" | "SUM";
 export type SQLStatement = "SELECT" | "UPDATE" | "DELETE" | "INSERT" | "RESET";
+export type CheckOperations = "INCLUDE" | "EXCLUDE" | ">" | "<" | ">=" | "<=";
 
 export type Check = {
-    type: number, // 0 = exclude, 1 = include
+    type: CheckOperations, 
     columns: {
         [column:string]: Array<any>,
     },
@@ -43,6 +44,9 @@ export type Query = {
     set: {
         [column:string]: any,
     },
+    search: {
+        [column:string]: any,
+    }
 };
 
 export type Settings = {
