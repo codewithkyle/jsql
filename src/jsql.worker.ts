@@ -1,6 +1,7 @@
 import type { Table, Schema, Column, Query, SQLFunction, Condition, Check } from "../jsql";
 import { openDB } from "./lib/idb";
 import Fuse from 'fuse.js';
+import { stat } from "fs/promises";
 
 class JSQLWorker {
     private db:any;
@@ -229,6 +230,7 @@ class JSQLWorker {
 
     private handleWhere(query:Query, rows:Array<any>):Array<any>{
         let output = [];
+        return output;
         for (let r = 0; r < rows.length; r++){
             const row = rows[r];
             let hasOneValidCondition = false;
@@ -567,40 +569,6 @@ class JSQLWorker {
         return query;
     }
 
-    private breakSubgroups(statement:string, output = []){
-        let openAt = -1;
-        let closeAt = -1;
-        let totalOpen = 0;
-        for (let c = statement.length - 1; c >= 0; c--){
-            switch (statement[c]){
-                case "(":
-                    totalOpen--;
-                    if (totalOpen === 0){
-                        openAt = c;
-                    }
-                    break;
-                case ")":
-                    totalOpen++;
-                    if (closeAt === -1){
-                        closeAt = c;
-                    }
-                    break;
-                default:
-                    break;
-            }
-            if (openAt !== -1){
-                const snippet = statement.slice(openAt, closeAt + 1);
-                statement = statement.replace(snippet, "").trim();
-                output.push(snippet.replace(/^\(|\)$/g, "").trim());
-                break;
-            }
-        }
-        if (statement.indexOf("(") !== -1){
-            output = this.breakSubgroups(statement, output);
-        }
-        return output;
-    }
-
     private buildConditionCheck(check:Check, statement, query:Query):Check{
         if (statement.indexOf("NOT ") === 0){
             check.type = "EXCLUDE";
@@ -666,43 +634,49 @@ class JSQLWorker {
         return check;
     }
 
-    private buildConditions(conditions, query:Query):Condition{
-        const condition:Condition = [];
-        for (let i = 0; i < conditions.length; i++){
-            let check:Check = {
-                type: "INCLUDE",
-                columns: {},
-            };
-            if (Array.isArray(conditions[i])){
-                for (let c = 0; c < conditions[i].length; c++){
-                    check = this.buildConditionCheck(check, conditions[i][c], query);
-                }
-            } else {
-                check = this.buildConditionCheck(check, conditions[i], query);
-            }
-            if (Object.keys(check.columns).length){
-                condition.push(check);
-            }
-        }
+    private buildConditions(statement:string, segments:Array<string>):Condition{
+        const condition:Condition = {
+            requireAll: false,
+            requireOne: false,
+            columns: [],
+            groups: [],
+        };
+        console.log(statement, segments, condition);
+        debugger;
         return condition;
     }
 
-    private parseConditions(statement:string, groups:Array<string>, conditions = []):Array<any>{
-        if (statement.indexOf(" AND ") !== -1){
-            const checks = statement.split(" AND ");
-            for (let c = 0; c < checks.length; c++){
-                if (checks[c].indexOf("(") === -1){
-                    conditions.push(checks[c]);
-                } else {
-                    const subgroupIndex = checks[c].match(/\d+/)[0];
-                    statement = checks[c].replace(`(${subgroupIndex})`, groups[subgroupIndex]).trim();
-                    conditions = this.parseConditions(statement, groups, conditions);
-                }
+    private parseNestedConditions(statement:string, statements = []){
+        let openAt = -1;
+        let closeAt = -1;
+        let totalOpen = 0;
+        for (let c = statement.length - 1; c >= 0; c--){
+            switch (statement[c]){
+                case "(":
+                    totalOpen--;
+                    if (totalOpen === 0){
+                        openAt = c;
+                    }
+                    break;
+                case ")":
+                    totalOpen++;
+                    if (closeAt === -1){
+                        closeAt = c;
+                    }
+                    break;
+                default:
+                    break;
             }
-        } else {
-            conditions.push(statement);
+            if (openAt !== -1){
+                let snippet = statement.slice(openAt, closeAt + 1);
+                snippet = snippet.replace(/^\(|\)$/g, "").trim();
+                statements.push(snippet);
+                openAt = -1;
+                closeAt = -1;
+                totalOpen = 0;
+            }
         }
-        return conditions;
+        return statements;
     }
 
     private parseWhereSegment(segments:Array<string>, query:Query, params:any):Query{
@@ -739,36 +713,53 @@ class JSQLWorker {
             groups.reverse();
 
             for (let i = 0; i < groups.length; i++){
-                let statement = groups[i].join(" ").trim();
-                const subgroups = this.breakSubgroups(statement);
-                if (subgroups.length){
-                    for (let s = 0; s < subgroups.length; s++){
-                        statement = statement.replace(subgroups[s], `${s}`).trim();
-                        if (subgroups[s].indexOf("(") !== -1){
-                            throw `Invalid syntax at: ${subgroups[s]}. Nested parenthesis are not currently supported.`;
+                if (groups[i][0] === "OR"){
+                    groups[i].splice(0, 1);
+                }
+            }
+
+            for (let i = 0; i < groups.length; i++){
+                let statement = groups[i].join(" ");
+                let statements = this.parseNestedConditions(statement);
+                let allResolved = false;
+                while(!allResolved){
+                    let resolved = true;
+                    for (let i = 0; i < statements.length; i++){
+                        if (statements[i].indexOf("(") !== -1){
+                            const newStatements = this.parseNestedConditions(statements[i]);
+                            statements.splice(i, 1, newStatements);
+                            statements = statements.flat();
+                            resolved = false;
+                            break;
                         }
                     }
-                    groups.splice(i, 1, {
-                        statement: statement,
-                        groups: subgroups,
-                    });
-                } else {
-                    groups.splice(i, 1, {
-                        statement: statement.replace(/^(OR)/, "").trim(),
-                        groups: [],
-                    });
+                    if (resolved){
+                        allResolved = true;
+                    }
                 }
+                statement = statement.replace(/^\(|\)$/g, "").trim();
+                if (statement.indexOf("(") !== -1){
+                    for (let i = 0; i < statements.length; i++){
+                        statement = statement.replace(statements[i], `${i}`);
+                    }
+                } else if (statements.length === 1) {
+                    statement = statements[0];
+                    statements = [];
+                }
+                groups.splice(i, 1, {
+                    statement: statement,
+                    segments: statements,
+                });
             }
 
             const conditions = [];
             for (let i = 0; i < groups.length; i++){
-                const condition = this.parseConditions(groups[i].statement, groups[i].groups);
+                const condition = this.buildConditions(groups[i].statement, groups[i].segments);
                 conditions.push(condition);
             }
-            for (let i = 0; i < conditions.length; i++){
-                const condition = this.buildConditions(conditions[i], query);
-                query.where.push(condition);
-            }
+
+            console.log(conditions);
+            debugger;
 
             for (let i = 0; i < query.where.length; i++){
                 for (let j = 0; j < query.where[i].length; j++){
