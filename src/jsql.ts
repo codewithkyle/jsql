@@ -173,7 +173,6 @@ class JSQLManager {
                     url: url,
                 });
             } catch (e) {
-                console.log(e);
                 worker.terminate();
                 reject(e);
             }

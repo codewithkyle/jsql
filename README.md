@@ -75,4 +75,3 @@ db.query("INSERT INTO users VALUES ($user1, $user2)", {
 - [x] `RESET` (`RESET *` to clear all tables or `RESET users` to clear one table)
 - [ ] `SELECT DISTINCT` and `SELECT UNIQUE` statements
 - [ ] Nested parentheses support
-- [ ] `JOIN` clause
