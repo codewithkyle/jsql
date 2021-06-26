@@ -74,4 +74,4 @@ db.query("INSERT INTO users VALUES ($user1, $user2)", {
 - [x] `LIKE` (`SELECT name FROM users WHERE name LIKE $query LIMIT 10`)
 - [x] `RESET` (`RESET *` to clear all tables or `RESET users` to clear one table)
 - [ ] `SELECT DISTINCT` and `SELECT UNIQUE` statements
-- [ ] Nested parentheses support
+- [ ] `GROUP BY` statement

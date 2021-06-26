@@ -18,13 +18,12 @@ export type Column = {
 
 export type SQLFunction = "COUNT" | "AVG" | "MIN" | "MAX" | "SUM";
 export type SQLStatement = "SELECT" | "UPDATE" | "DELETE" | "INSERT" | "RESET";
-export type CheckOperations = "INCLUDE" | "EXCLUDE" | ">" | "<" | ">=" | "<=";
+export type CheckOperation = "=" | "==" | "!=" | "!==" | ">" | "<" | ">=" | "<=" | "!>=" | "!<=" | "!>" | "!<";
 
 export type Check = {
-    type: CheckOperations, 
-    columns: {
-        [column:string]: Array<any>,
-    },
+    type: CheckOperation, 
+    columns: string,
+    values: Array<any>,
 };
 export type Condition = Array<Check>;
 

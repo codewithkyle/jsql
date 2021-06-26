@@ -229,6 +229,7 @@ class JSQLWorker {
 
     private handleWhere(query:Query, rows:Array<any>):Array<any>{
         let output = [];
+        return output;
         for (let r = 0; r < rows.length; r++){
             const row = rows[r];
             let hasOneValidCondition = false;
@@ -241,13 +242,13 @@ class JSQLWorker {
                     let checksNeeded = 0;
                     for (const column in check.columns){
                         let match = false;
-                        if (check.type === "EXCLUDE"){
+                        if (check.type === "!="){
                             checksNeeded += check.columns[column].length;
                         }
                         for (let v = 0; v < check.columns[column].length; v++){
                             const value = check.columns[column][v];
                             switch (check.type){
-                                case "INCLUDE":
+                                case "==":
                                     switch(typeof row[column]){
                                         case "object":
                                             if (Array.isArray(row[column])){
@@ -270,7 +271,7 @@ class JSQLWorker {
                                             break;
                                     }
                                     break;
-                                case "EXCLUDE":
+                                case "!==":
                                     switch(typeof row[column]){
                                         case "object":
                                             if (Array.isArray(row[column])){
@@ -301,7 +302,7 @@ class JSQLWorker {
                             break;
                         }
                     }
-                    if (check.type === "EXCLUDE" && checksPassed === checksNeeded){
+                    if (check.type === "!==" && checksPassed === checksNeeded){
                         passes++;
                     }
                 }
@@ -601,26 +602,25 @@ class JSQLWorker {
         return output;
     }
 
-    private buildConditionCheck(check:Check, statement, query:Query):Check{
-        if (statement.indexOf("NOT ") === 0){
-            check.type = "EXCLUDE";
-            statement = statement.replace(/^(NOT)/, "").trim();
+    private buildConditionCheck(check:Check, statement:string, query:Query):Check{
+        if (statement.search(/\bNOT\b/i) !== -1){
+            throw `Invalid syntax: WHERE clause contains 'NOT'. See https://github.com/codewithkyle/jsql/wiki/WHERE for proper WHERE clause usage.`;
         }
-        if (statement.indexOf(" OR ") === -1)
+        if (statement.search(/\bOR\b/i) === -1)
         {
-            if (statement.indexOf("IS NOT NULL") !== -1)
+            if (statement.search(/\bIS\b\s+\bNOT\b\s+\bNULL\b/i) !== -1)
             {
-                const column = statement.replace("IS NOT NULL", "").trim();
+                const column = statement.replace(/\bIS\b\s+\bNOT\b\s+\bNULL\b/i, "").trim();
                 const value = null;
-                if (column in check.columns){
+                if (column === check.columns){
                     check.columns[column].push(value);
                 } else {
                     check.columns[column] = [value];
                 }
             }
-            else if (statement.indexOf(" LIKE ") !== -1)
+            else if (statement.search(/\bLIKE\b/i) !== -1)
             {
-                const values = statement.trim().replace(/\'|\"/g, "").split(" LIKE ");
+                const values = statement.trim().replace(/\'|\"/g, "").split(/\bLIKE\b/i);
                 if (values.length !== 2){
                     throw `Invalid syntax at: ${statement}`;
                 }
@@ -639,7 +639,7 @@ class JSQLWorker {
                 }
                 const column = values[0].trim();
                 const value = values[1].trim();
-                if (column in check.columns){
+                if (column === check.columns){
                     check.columns[column].push(value);
                 } else {
                     check.columns[column] = [value];
@@ -648,7 +648,7 @@ class JSQLWorker {
         }
         else
         {
-            const conditionSegments = statement.split(" OR ");
+            const conditionSegments = statement.split(/\bOR\b/i);
             for (let i = 0; i < conditionSegments.length; i++){
                 const values = conditionSegments[i].trim().replace(/\'|\"/g, "").split("=");
                 if (values.length !== 2){
@@ -656,7 +656,7 @@ class JSQLWorker {
                 }
                 const column = values[0].trim();
                 const value = values[1].trim();
-                if (column in check.columns){
+                if (column === check.columns){
                     check.columns[column].push(value);
                 } else {
                     check.columns[column] = [value];
@@ -666,12 +666,17 @@ class JSQLWorker {
         return check;
     }
 
+    /**
+     * Example conditions array: ["Type=creature ", " TotalManaCost = 0"]
+     */
     private buildConditions(conditions, query:Query):Condition{
+        console.log(conditions);
         const condition:Condition = [];
         for (let i = 0; i < conditions.length; i++){
             let check:Check = {
-                type: "INCLUDE",
-                columns: {},
+                type: "=",
+                columns: "",
+                values: [],
             };
             if (Array.isArray(conditions[i])){
                 for (let c = 0; c < conditions[i].length; c++){
@@ -688,8 +693,8 @@ class JSQLWorker {
     }
 
     private parseConditions(statement:string, groups:Array<string>, conditions = []):Array<any>{
-        if (statement.indexOf(" AND ") !== -1){
-            const checks = statement.split(" AND ");
+        if (statement.search(/\bAND\b/i) !== -1){
+            const checks = statement.split(/\bAND\b/i);
             for (let c = 0; c < checks.length; c++){
                 if (checks[c].indexOf("(") === -1){
                     conditions.push(checks[c]);
