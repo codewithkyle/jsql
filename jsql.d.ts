@@ -18,18 +18,16 @@ export type Column = {
 
 export type SQLFunction = "COUNT" | "AVG" | "MIN" | "MAX" | "SUM";
 export type SQLStatement = "SELECT" | "UPDATE" | "DELETE" | "INSERT" | "RESET";
-export type CheckOperation = "=" | "==" | "!=" | "!==" | ">" | "<" | ">=" | "<=" | "!>=" | "!<=" | "!>" | "!<";
+export type CheckOperation = "=" | "==" | "!=" | "!==" | ">" | "<" | ">=" | "<=" | "!>=" | "!<=" | "!>" | "!<" | "LIKE";
 
 export type Check = {
     type: CheckOperation, 
     column: string;
-    values: Array<any>;
+    value: any;
 };
 export type Condition = {
-    requireAll: boolean;
-    requireOne: boolean;
-    columns: Array<Check>;
-    groups: Array<Condition>;
+    requireAll: boolean,
+    checks: Array<Check|Array<Check>>,
 };
 
 export type Query = {
@@ -48,9 +46,6 @@ export type Query = {
     set: {
         [column:string]: any,
     },
-    search: {
-        [column:string]: any,
-    }
 };
 
 export type Settings = {
