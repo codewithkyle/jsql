@@ -203,12 +203,32 @@ class JSQLWorker {
                     temp.push(output[i][query.columns[0]]);
                 }
                 output = temp;
+            } else if (query.group !== null){
+                // @ts-ignore
+                output = this.buildGroups(output, query.group);
             }
-            if (output.length){
+            if (Array.isArray(output)){
                 rows = [...rows, ...output];
+            } else {
+                rows.push(output);
             }
         }
+        if (queries.length === 1 && queries[0].group !== null){
+            rows = rows[0];
+        }
         return rows;
+    }
+
+    private buildGroups(rows:Array<any>, column:string){
+        const groups = {};
+        for (let r = 0; r < rows.length; r++){
+            if (rows[r][column] in groups){
+                groups[rows[r][column]].push(rows[r]);
+            } else {
+                groups[rows[r][column]] = [rows[r]];
+            }
+        }
+        return groups;
     }
 
     private getUnique(rows:Array<any>, columns:Array<string>){
@@ -474,6 +494,7 @@ class JSQLWorker {
             values: null,
             order: null,
             set: null,
+            group: null,
         };
         for (let i = segments.length - 1; i >= 0; i--){
             const segment = segments[i].join(" ");
@@ -500,6 +521,9 @@ class JSQLWorker {
                         throw `Invalid syntax at: ${segments[i].join(" ")}`
                     }
                     query.limit = parseInt(segments[i][1]);
+                    break;
+                case "GROUP":
+                    query = this.parseGroupBySegment(segments[i], query);
                     break;
                 case "ORDER":
                     query = this.parseOrderBySegment(segments[i], query);
@@ -768,6 +792,17 @@ class JSQLWorker {
         }
     }
 
+    private parseGroupBySegment(segments:Array<string>, query:Query):Query{
+        if (segments.length !== 3){
+            throw `Invalid syntax. GROUP BY only currently supports single column sorting.`;
+        }
+        if (query.uniqueOnly){
+            throw `Invalid syntax. GROUP BY can not be used with UNIQUE or DISTINCT statements.`
+        }
+        query.group = segments[2];
+        return query;
+    }
+
     private parseOrderBySegment(segments:Array<string>, query:Query):Query{
         if (segments.length < 3 || segments[1] !== "BY")
         {
@@ -778,7 +813,7 @@ class JSQLWorker {
             segments.splice(0, 2);
             if (segments.length > 2 || segments[0].indexOf(",") !== -1)
             {
-                throw `Invalid syntax. ORDER BY currently supports single column sorting.`
+                throw `Invalid syntax. ORDER BY only currently supports single column sorting.`
             }
             else
             {
@@ -786,7 +821,7 @@ class JSQLWorker {
                 if (segments?.[1]){
                     sort = segments[1].toUpperCase();
                     if (sort !== "ASC" && sort !== "DESC"){
-                        throw `Invalid syntax. ORDER BY currently supports ASC or DESC sorting.`
+                        throw `Invalid syntax. ORDER BY only currently supports ASC or DESC sorting.`
                     }
                 }
                 query.order = {
@@ -938,6 +973,9 @@ class JSQLWorker {
                         index = i;
                         break;
                     case "RESET":
+                        index = i;
+                        break;
+                    case "GROUP":
                         index = i;
                         break;
                     default:

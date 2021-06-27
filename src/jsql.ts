@@ -121,6 +121,8 @@ class JSQLManager {
                 values: null,
                 order: null,
                 set: null,
+                group: null,
+                uniqueOnly: null,
             };
             if (!Array.isArray(query)){
                 query = [query];

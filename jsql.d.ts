@@ -43,6 +43,7 @@ export type Query = {
         column: string,
         by: "ASC" | "DESC",
     },
+    group: string,
     values: Array<any>,
     set: {
         [column:string]: any,
