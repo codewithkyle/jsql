@@ -19,14 +19,14 @@ class JSQLManager {
         this.promises = {};
         this.settings = {
             schema: `${location.origin}/scheam.json`,
-            dbWorker: "https://cdn.jsdelivr.net/npm/@codewithkyle/jsql@1/jsql.worker.js",
-            streamWorker: "https://cdn.jsdelivr.net/npm/@codewithkyle/jsql@1/stream.worker.js",
+            dbWorker: "https://unpkg.com/@codewithkyle/jsql@1/jsql.worker.js",
+            streamWorker: "https://unpkg.com/@codewithkyle/jsql@1/stream.worker.js",
         };
     }
 
     private async getWorkerURL(settingsURL:string) {
         let url = null;
-        if (settingsURL.indexOf("https://cdn.jsdelivr.net") === 0){
+        if (settingsURL.indexOf("https://unpkg.com") === 0){
             let request = await fetch(settingsURL);
             if (request.ok) {
                 const response = await request.blob();

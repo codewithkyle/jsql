@@ -25,7 +25,7 @@
         </input-component>
     </form>
     <script type="module">
-        import db from "./jsql.js";
+        import db from "https://unpkg.com/@codewithkyle/jsql@1.0.1/jsql.js";
         db.start().then(() => {
             if (!localStorage.getItem("loaded-once")){
                 db.ingest(`${location.origin}/cards.ndjson`, "cards").then(() => {

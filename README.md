@@ -13,13 +13,13 @@ npm i -S @codewithkyle/jsql
 Install via CDN
 
 ```javascript
-import db from "https://cdn.jsdelivr.net/npm/@codewithkyle/jsql@1/jsql.js";
+import db from "https://unpkg.com/@codewithkyle/jsql@1/jsql.js";
 ```
 
 ## Getting Started
 
 ```javascript
-import db from "@codewithkyle/jsql";
+import db from "https://unpkg.com/@codewithkyle/jsql@1/jsql.js";
 
 db.start({
     scheam: "/scheam.json", // default
