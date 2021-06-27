@@ -70,8 +70,8 @@ db.query("INSERT INTO users VALUES ($user1, $user2)", {
     - [x] `AVG()`
     - [x] `SUM()`
 - [x] Parameter injection
-- [ ] Advanced `WHERE` (greater than (or equal to), less than (or equal to))
+- [x] Advanced `WHERE` (greater than (or equal to), less than (or equal to))
 - [x] `LIKE` (`SELECT name FROM users WHERE name LIKE $query LIMIT 10`)
 - [x] `RESET` (`RESET *` to clear all tables or `RESET users` to clear one table)
 - [ ] `SELECT DISTINCT` and `SELECT UNIQUE` statements
-- [ ] Nested parentheses support
+- [ ] `GROUP BY` support
