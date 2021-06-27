@@ -117,7 +117,6 @@ class JSQLWorker {
             if (query.type !== "INSERT" && query.table !== "*"){
                 // Optimize IDB query when we are only looking for 1 value from 1 column
                 if (query.where !== null && query.where.length === 1 && query.where[0].checks.length === 1 && !Array.isArray(query.where[0].checks[0]) && query.where[0].checks[0].type === "=="){
-                    console.log("fast tracked");
                     skipWhere = true;
                     // @ts-ignore
                     output = await this.db.getAllFromIndex(query.table, query.where[0].checks[0].column, query.where[0].checks[0].value);
@@ -604,7 +603,7 @@ class JSQLWorker {
     private async buildQueriesFromSQL({ sql, params }):Promise<Array<Query>>{
         sql = sql.replace(/\-\-.*|\;$/g, "").trim();
         const queries:Array<Query> = [];
-        const statements = sql.split(" UNION ");
+        const statements = sql.split(/\bUNION\b/i);
         for (let i = 0; i < statements.length; i++){
             queries.push(this.buildQueryFromStatement(statements[i], params));
         }
@@ -752,8 +751,6 @@ class JSQLWorker {
                 conditions.push(condition);
             }
 
-            console.log(conditions);
-
             query.where = conditions;
 
             for (let i = 0; i < query.where.length; i++){
@@ -892,7 +889,7 @@ class JSQLWorker {
                 throw `Invalid SELECT statement. DISTINCT or UNIQUE does not currently support multiple columns.`
             }
         }
-        else if (segments[1].toUpperCase().indexOf("COUNT") === 0 || segments[1].toUpperCase().indexOf("MIN") === 0 || segments[1].toUpperCase().indexOf("MAX") === 0 || segments[1].toUpperCase().indexOf("AVG") === 0 || segments[1].toUpperCase().indexOf("SUM") === 0)
+        else if (segments[1].toUpperCase().search(/\bCOUNT\b/i) === 0 || segments[1].toUpperCase().search(/\bMIN\b/i) === 0 || segments[1].toUpperCase().search(/\bMAX\b/i) === 0 || segments[1].toUpperCase().search(/\bAVG\b/i) === 0 || segments[1].toUpperCase().search(/\bSUM\b/i) === 0)
         {
             if (segments.includes("*")){
                 throw `Invalid SELECT statement. Functions can not be used with the wildcard (*) character.`;
@@ -927,7 +924,7 @@ class JSQLWorker {
     }
 
     private parseSegments(sql){
-        let textNodes:Array<string> = sql.replace(/\s+/g, " ").trim().split(" ");
+        let textNodes:Array<string> = sql.trim().split(/\s+/);
         const segments = [];
         while(textNodes.length > 0){
             let index = -1;

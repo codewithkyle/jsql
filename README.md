@@ -52,28 +52,3 @@ db.query("INSERT INTO users VALUES ($user1, $user2)", {
     }
 });
 ```
-
-## Roadmap
-
-- [x] Basic SQL queries
-    - [x] `SELECT`
-    - [x] `DELETE`
-    - [x] `INSERT INTO`
-    - [x] `UPDATE`
-- [x] Simple `WHERE` (column = value, AND, OR, single layer parentheses groups)
-- [x] `LIMIT`
-- [x] `OFFSET`
-- [x] Functions
-    - [x] `COUNT()`
-    - [x] `MIN()`
-    - [x] `MAX()`
-    - [x] `AVG()`
-    - [x] `SUM()`
-- [x] Parameter injection
-- [x] Advanced `WHERE` (greater than (or equal to), less than (or equal to))
-- [x] `LIKE` (`SELECT name FROM users WHERE name LIKE $query LIMIT 10`)
-- [x] `RESET` (`RESET *` to clear all tables or `RESET users` to clear one table)
-- [x] `SELECT DISTINCT` and `SELECT UNIQUE` statements
-- [x] `GROUP BY` support
-- [ ] Replace `indexOf` with `search`
-- [ ] Update `split` function calls to use Regex
