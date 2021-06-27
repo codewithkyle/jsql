@@ -328,7 +328,6 @@ class JSQLWorker {
 
     private handleWhere(query:Query, rows:Array<any>):Array<any>{
         let output = [];
-        return output;
         for (let r = 0; r < rows.length; r++){
             const row = rows[r];
             let hasOneValidCondition = false;
