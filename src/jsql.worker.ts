@@ -1,7 +1,6 @@
 import type { Table, Schema, Column, Query, SQLFunction, Condition, Check } from "../jsql";
 import { openDB } from "./lib/idb";
 import Fuse from 'fuse.js';
-import { stat } from "fs/promises";
 
 class JSQLWorker {
     private db:any;
@@ -184,6 +183,9 @@ class JSQLWorker {
                 if (query.function !== null){
                     output = this.handleSelectFunction(query, output);
                 } else {
+                    if (query.uniqueOnly){
+                        output = this.getUnique(output, query.columns);
+                    }
                     if (query.columns.length && query.columns[0] !== "*"){
                         output = this.filterColumns(query, output);
                     }
@@ -195,11 +197,30 @@ class JSQLWorker {
                     }
                 }
             }
+            if (query.uniqueOnly){
+                const temp = [];
+                for (let i = 0; i < output.length; i++){
+                    temp.push(output[i][query.columns[0]]);
+                }
+                output = temp;
+            }
             if (output.length){
                 rows = [...rows, ...output];
             }
         }
         return rows;
+    }
+
+    private getUnique(rows:Array<any>, columns:Array<string>){
+        let output = [];
+        const claimedValues = [];
+        for (let r = 0; r < rows.length; r++){
+            if (!claimedValues.includes(rows[r][columns[0]])){
+                claimedValues.push(rows[r][columns[0]]);
+                output.push(rows[r]);
+            }
+        }
+        return output;
     }
 
     private getTableKey(table: string) {
@@ -442,6 +463,7 @@ class JSQLWorker {
     private buildQueryFromStatement(sql, params):Query{
         const segments:Array<Array<string>> = this.parseSegments(sql);
         let query:Query = {
+            uniqueOnly: false,
             type: null,
             function: null,
             table: null,
@@ -820,27 +842,36 @@ class JSQLWorker {
     }
 
     private parseSelectSegment(segments:Array<string>, query:Query):Query{
-        if (segments.length === 1)
-        {
-            throw `Invalid syntax at: ${segments}.`
-        }
-        else if (segments[1].toUpperCase() === "DISTINCT")
-        {
-            throw `Invalid syntax: DISTINCT selects are not currently supported.`
-        }
-        else if (segments.includes("*"))
+        if (segments.includes("*"))
         {
             query.columns = ["*"];
         }
+        if (segments[1].toUpperCase() === "DISTINCT" || segments[1].toUpperCase() === "UNIQUE")
+        {
+            if (segments.includes("*")){
+                throw `Invalid SELECT statement. DISTINCT or UNIQUE does not currently support the wildcard (*) character.`;
+            }
+            query.uniqueOnly = true;
+            segments.splice(1, 1);
+            if (segments.length > 2){
+                throw `Invalid SELECT statement. DISTINCT or UNIQUE does not currently support multiple columns.`
+            }
+        }
         else if (segments[1].toUpperCase().indexOf("COUNT") === 0 || segments[1].toUpperCase().indexOf("MIN") === 0 || segments[1].toUpperCase().indexOf("MAX") === 0 || segments[1].toUpperCase().indexOf("AVG") === 0 || segments[1].toUpperCase().indexOf("SUM") === 0)
         {
+            if (segments.includes("*")){
+                throw `Invalid SELECT statement. Functions can not be used with the wildcard (*) character.`;
+            }
             const type = segments[1].match(/\w+/)[0].trim().toUpperCase();
             const column = segments[1].match(/\(.*?\)/)[0].replace(/\(|\)/g, "").trim();
             query.function = type as SQLFunction;
             query.columns = [column];
         }
-        else
-        {
+        if (query.columns === null){
+            if (segments.length === 1)
+            {
+                throw `Invalid SELECT statement syntax.`;
+            }
             query.columns = [];
             for (let i = 1; i < segments.length; i++)
             {
