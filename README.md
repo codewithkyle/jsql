@@ -21,11 +21,7 @@ import db from "https://unpkg.com/@codewithkyle/jsql@1/jsql.js";
 ```javascript
 import db from "https://unpkg.com/@codewithkyle/jsql@1/jsql.js";
 
-db.start({
-    scheam: "/scheam.json", // default
-    dbWorker: "/js/jsql.worker.js", // defaults to CDN
-    streamWorker: "/js/stream.worker.js", // defaults to CDN
-});
+db.start();
 ```
 
 ## Writing Queries
