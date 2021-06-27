@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JSQL Playground</title>
-    <link href="https://unpkg.com/brixi@0.3.3/brixi.min.css" rel="stylesheet">
+    <link href="https://unpkg.com/brixi@^0.5/brixi.min.css" rel="stylesheet">
     <link href="/input.css" rel="stylesheet">
     <style>
         *{
@@ -26,13 +26,9 @@
     </form>
     <script type="module">
         import db from "./jsql.js";
-        db.start({
-            schema: "/scheam.json", 
-            dbWorker: "/jsql.worker.js",
-            streamWorker: "/stream.worker.js"
-        }).then(() => {
+        db.start().then(() => {
             if (!localStorage.getItem("loaded-once")){
-                db.ingest("/cards.ndjson", "cards").then(() => {
+                db.ingest(`${location.origin}/cards.ndjson`, "cards").then(() => {
                     alert("Application is ready");
                     localStorage.setItem("loaded-once", true);
                 });

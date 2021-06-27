@@ -24,11 +24,32 @@ class JSQLManager {
         };
     }
 
+    private async getWorkerURL(settingsURL:string) {
+        let url = null;
+        if (settingsURL.indexOf("https://cdn.jsdelivr.net") === 0){
+            let request = await fetch(settingsURL);
+            if (request.ok) {
+                const response = await request.blob();
+                url = URL.createObjectURL(response);
+            } else {
+                console.error(`${request.status}: ${request.statusText}`);
+            }
+        } else {
+            url = settingsURL;
+        }
+        return url;
+    }
+
     public start(settings:Partial<Settings> = {}):Promise<string|void>{
         this.settings = Object.assign(this.settings, settings);
+        if (this.settings.schema.search(/^http/i) !== 0){
+            console.error("Schema file setting must be a complete URL. Ex: https://example.com/schema.json");
+            return;
+        }
         return new Promise(async (resolve, reject) => {
             try{
-                this.worker = new Worker(this.settings.dbWorker);
+                const url = await this.getWorkerURL(this.settings.dbWorker);
+                this.worker = new Worker(url);
                 this.worker.onmessage = this.inbox.bind(this);
                 await new Promise((internalResolve, interalReject) => {
                     const messageUid = uuid();
@@ -136,6 +157,11 @@ class JSQLManager {
     }
 
     public async ingest(url:string, table:string, type:"JSON" | "NDJSON" = "NDJSON"){
+        if (url.search(/^http/i) !== 0){
+            console.error("Ingest URL must be a complete URL. Ex: https://example.com/data.json");
+            return;
+        }
+        console.log("asdf");
         if (type === "JSON"){
             await this.ingestAsJSON(url, table);
         } else {
@@ -144,8 +170,9 @@ class JSQLManager {
     }
 
     private ingestAsNDJSON(url:string, table:string):Promise<void>{
-        return new Promise((resolve, reject) => {
-            const worker = new Worker(this.settings.streamWorker);
+        return new Promise(async (resolve, reject) => {
+            const workerURL = await this.getWorkerURL(this.settings.streamWorker);
+            const worker = new Worker(workerURL);
             let total = 0;
             let totalInserted = 0;
             let hasFinished = false;
