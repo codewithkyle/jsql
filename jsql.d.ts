@@ -31,6 +31,7 @@ export type Condition = {
 };
 
 export type Query = {
+    uniqueOnly: boolean,
     type: SQLStatement,
     function: SQLFunction,
     table: string,
