@@ -10,7 +10,7 @@
     "stream.worker.js"
   ],
   "scripts": {
-    "install": "node ./build/bundle.js",
+    "bundle": "node ./build/bundle.js",
     "build": "esbuild ./src/jsql.ts --outfile=jsql.js --format=esm --minify && esbuild ./src/jsql.worker.ts --outfile=jsql.worker.js --minify --bundle && esbuild ./src/stream-parser.worker.ts --outfile=stream.worker.js --minify --bundle",
     "build:test": "npm run build && cp ./jsql.js ./test && cp ./jsql.worker.js ./test && cp ./stream.worker.js ./test",
     "test": "serve ./test"
