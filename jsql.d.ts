@@ -56,7 +56,7 @@ export type Settings = {
     streamWorker: string,
 };
 
-export default class db {
+export default interface db {
     start(settings?:Partial<Settings>): Promise<string|void>;
     query(SQL:string, params?:unknown): Promise<any>;
     ingest(url:string, table:string, type?:"JSON" | "NDJSON"): Promise<void>;

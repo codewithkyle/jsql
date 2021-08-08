@@ -18,15 +18,19 @@
     </style>
 </head>
 <body class="w-screen h-screen overflow-hidden bg-grey-200" flex="items-center justify-center">
-    <form class="bg-white radius-0.5 p-1 border-1 border-solid border-grey-300 shadow-md max-w-full w-tablet">
+    <form class="bg-white radius-0.5 p-1 border-1 border-solid border-grey-300 shadow-md max-w-full w-768">
         <input-component class="block w-full">
             <label for="query">SQL Query</label>
             <input type="text" id="query" autocapitalize="off" autocomplete="off" required />
         </input-component>
     </form>
     <script type="module">
-        import db from "https://unpkg.com/@codewithkyle/jsql@1.0.1/jsql.js";
-        db.start().then(() => {
+        import db from "./jsql.js";
+        db.start({
+            scheam: `./schema.json`,
+            dbWorker: `./jsql.worker.js`,
+            streamWorker: `./stream.worker.js`,
+        }).then(() => {
             if (!localStorage.getItem("loaded-once")){
                 db.ingest(`${location.origin}/cards.ndjson`, "cards").then(() => {
                     alert("Application is ready");

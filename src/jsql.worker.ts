@@ -143,9 +143,11 @@ class JSQLWorker {
                     }
                     for (let r = 0; r < output.length; r++){
                         let dirty = false;
+                        console.log(query.set, output);
                         for (const column in query.set){
                             if (column in output[r]){
                                 output[r][column] = query.set[column];
+                                dirty = true;
                             }
                         }
                         if (dirty){
