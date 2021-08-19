@@ -760,7 +760,7 @@ class JSQLWorker {
                     } else {
                         const check = query.where[i].checks[k] as Check;
                         const value = this.injectParameter(check.value, params);
-                        query.where[i].checks[k] = value;
+                        query.where[i].checks[k].value = value;
                     }
                 }
             }
