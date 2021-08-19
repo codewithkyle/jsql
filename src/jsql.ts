@@ -1,6 +1,6 @@
 import { Query, Settings, default as Database } from "../jsql";
 
-const URLTest = new RegExp(/https?:\/\//gm);
+const URLTest = new RegExp(/^(https?:\/\/)/gm);
 
 class JSQLManager {
     private queue: Array<any>;
