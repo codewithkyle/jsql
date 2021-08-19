@@ -481,7 +481,7 @@ class JSQLWorker {
         return modifiedRows;
     }
 
-    private buildQueryFromStatement(sql, params):Query{
+    private buildQueryFromStatement(sql, params = {}):Query{
         const segments:Array<Array<string>> = this.parseSegments(sql);
         let query:Query = {
             uniqueOnly: false,
@@ -506,10 +506,10 @@ class JSQLWorker {
             }
             switch(segments[i][0].toUpperCase()){
                 case "SET":
-                    query = this.parseSetSegment(segments[i], query, params ?? {})
+                    query = this.parseSetSegment(segments[i], query, params)
                     break;
                 case "VALUES":
-                    query = this.parseValues(segments[i], query, params ?? {});
+                    query = this.parseValues(segments[i], query, params);
                     break;
                 case "OFFSET":
                     if (segments[i].length !== 2){
@@ -530,7 +530,7 @@ class JSQLWorker {
                     query = this.parseOrderBySegment(segments[i], query);
                     break;
                 case "WHERE":
-                    query = this.parseWhereSegment(segments[i], query, params ?? {});
+                    query = this.parseWhereSegment(segments[i], query, params);
                     break;
                 case "FROM":
                     if (segments[i].length !== 2){
@@ -540,7 +540,7 @@ class JSQLWorker {
                     break;
                 case "SELECT":
                     query.type = "SELECT";
-                    query = this.parseSelectSegment(segments[i], query);
+                    query = this.parseSelectSegment(segments[i], query, params);
                     break;
                 case "DELETE":
                     query.type = "DELETE";
@@ -599,6 +599,7 @@ class JSQLWorker {
         {
             throw `Invalid syntax: OFFSET is not a number.`;
         }
+        query.table = this.injectParameter(query.table, params);
         return query;
     }
 
@@ -631,14 +632,7 @@ class JSQLWorker {
             }
         }
         for (const column in query.set){
-            if (query.set[column].indexOf("$") === 0){
-                const key = query.set[column].substring(1, query.set[column].length);
-                if (key in params){
-                    query.set[column] = params[key];
-                } else {
-                    throw `Invalid params. Missing key: ${key}`;
-                }
-            }
+            query.set[column] = this.injectParameter(query.set[column], params);
         }
         return query;
     }
@@ -761,29 +755,13 @@ class JSQLWorker {
                         // @ts-ignore
                         for (let c = 0; c < query.where[i].checks[k].length; c++){
                             const check = query.where[i].checks[k][c] as Check;
-                            const value = check.value;
-                            if (value.indexOf("$") !== -1){
-                                const key = check.value.slice(1);
-                                if (key in params){
-                                    // @ts-ignore
-                                    query.where[i].checks[k][c].value = params[key];
-                                } else {
-                                    throw `Invalid params. Missing key: ${key}`;
-                                }
-                            }
+                            const value = this.injectParameter(check.value, params);
+                            query.where[i].checks[k][c].value = value;
                         }
                     } else {
                         const check = query.where[i].checks[k] as Check;
-                        const value = check.value;
-                        if (value.indexOf("$") !== -1){
-                            const key = check.value.slice(1);
-                            if (key in params){
-                                // @ts-ignore
-                                query.where[i].checks[k].value = params[key];
-                            } else {
-                                throw `Invalid params. Missing key: ${key}`;
-                            }
-                        }
+                        const value = this.injectParameter(check.value, params);
+                        query.where[i].checks[k] = value;
                     }
                 }
             }
@@ -844,19 +822,22 @@ class JSQLWorker {
             segments.splice(0, 1);
             const values = segments.join("").replace(/\(|\)|\s/g, "").split(",");
             for (let i = 0; i < values.length; i++){
-                if (values[i].indexOf("$") === 0){
-                    const key = values[i].substring(1, values[i].length);
-                    if (key in params){
-                        query.values.push(params[key]);
-                    } else {
-                        throw `Invalid params. Missing key: ${key}`;
-                    }
-                } else {
-                    query.values.push(values[i]);
-                }
+                query.values.push(this.injectParameter(values[i], params));
             }
         }
         return query;
+    }
+
+    private injectParameter(value:string, params:object){
+        if (value.indexOf("$") === 0){
+            const key = value.substring(1, value.length);
+            if (key in params){
+                return params[key];
+            } else {
+                throw `Invalid params. Missing key: ${key}`;
+            }
+        }
+        return value;
     }
 
     private parseInsertSegment(segments:Array<string>, query:Query):Query{
@@ -875,7 +856,7 @@ class JSQLWorker {
         return query;
     }
 
-    private parseSelectSegment(segments:Array<string>, query:Query):Query{
+    private parseSelectSegment(segments:Array<string>, query:Query, params):Query{
         if (segments.includes("*"))
         {
             query.columns = ["*"];
@@ -909,15 +890,11 @@ class JSQLWorker {
             query.columns = [];
             for (let i = 1; i < segments.length; i++)
             {
-                if (segments[i].indexOf(",") === -1){
-                    query.columns.push(segments[i]);
-                } else {
-                    const cols = segments[i].split(",");
-                    for (let j = 0; j < cols.length; j++){
-                        const col = cols[j].trim();
-                        if (col.length){
-                            query.columns.push(col);
-                        }
+                const cols = segments[i].split(",");
+                for (let j = 0; j < cols.length; j++){
+                    const col = cols[j].trim();
+                    if (col.length){
+                        query.columns.push(this.injectParameter(col, params));
                     }
                 }
             }

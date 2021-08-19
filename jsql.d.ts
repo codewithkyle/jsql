@@ -57,7 +57,7 @@ export type Settings = {
 };
 
 export default class db {
-    start(settings?:Partial<Settings>): Promise<string|void>;
-    query(SQL:string, params?:unknown): Promise<any>;
-    ingest(url:string, table:string, type?:"JSON" | "NDJSON"): Promise<void>;
+    public start(settings?:Partial<Settings>): Promise<string|void>;
+    public query(SQL:string, params?:unknown): Promise<any>;
+    public ingest(url:string, table:string, type?:"JSON" | "NDJSON"): Promise<void>;
 }
