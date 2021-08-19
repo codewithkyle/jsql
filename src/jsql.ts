@@ -1,4 +1,4 @@
-import { Query, Settings } from "../jsql";
+import { Query, Settings, default as Database } from "../jsql";
 
 class JSQLManager {
     private queue: Array<any>;
@@ -42,7 +42,8 @@ class JSQLManager {
 
     public start(settings:Partial<Settings> = {}):Promise<string|void>{
         this.settings = Object.assign(this.settings, settings);
-        if (this.settings.schema.search(/^http/i) !== 0){
+        const URLTest = new RegExp(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()!@:%_\+.~#?&\/\/=]*)/gm);
+        if (!URLTest.test(this.settings.schema)){
             console.error("Schema file setting must be a complete URL. Ex: https://example.com/schema.json");
             return;
         }
@@ -161,7 +162,6 @@ class JSQLManager {
             console.error("Ingest URL must be a complete URL. Ex: https://example.com/data.json");
             return;
         }
-        console.log("asdf");
         if (type === "JSON"){
             await this.ingestAsJSON(url, table);
         } else {
@@ -238,5 +238,5 @@ function uuid(){
 
 const noop = ()=>{};
 
-const db = new JSQLManager();
+const db:Database = new JSQLManager();
 export default db;

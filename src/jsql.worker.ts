@@ -68,17 +68,17 @@ class JSQLWorker {
         if (!request.ok){
             throw `${request.status}: ${request.statusText}`;
         }
-        const scheam: Schema = await request.json();
-        this.tables = scheam.tables;
+        const schema: Schema = await request.json();
+        this.tables = schema.tables;
         // @ts-expect-error
-        this.db = await openDB(scheam.name, scheam.version, {
+        this.db = await openDB(schema.name, schema.version, {
             upgrade(db, oldVersion, newVersion, transaction) {
                 // Purge old stores so we don't brick the JS runtime VM when upgrading
                 for (let i = 0; i < db.objectStoreNames.length; i++) {
                     db.deleteObjectStore(db.objectStoreNames[i]);
                 }
-                for (let i = 0; i < scheam.tables.length; i++) {
-                    const table: Table = scheam.tables[i];
+                for (let i = 0; i < schema.tables.length; i++) {
+                    const table: Table = schema.tables[i];
                     const options = {
                         keyPath: "id",
                         autoIncrement: false,
@@ -143,7 +143,6 @@ class JSQLWorker {
                     }
                     for (let r = 0; r < output.length; r++){
                         let dirty = false;
-                        console.log(query.set, output);
                         for (const column in query.set){
                             if (column in output[r]){
                                 output[r][column] = query.set[column];
