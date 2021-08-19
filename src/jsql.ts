@@ -1,5 +1,7 @@
 import { Query, Settings, default as Database } from "../jsql";
 
+const URLTest = new RegExp(/https?:\/\//gm);
+
 class JSQLManager {
     private queue: Array<any>;
 	private ready: boolean;
@@ -42,7 +44,6 @@ class JSQLManager {
 
     public start(settings:Partial<Settings> = {}):Promise<string|void>{
         this.settings = Object.assign(this.settings, settings);
-        const URLTest = new RegExp(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()!@:%_\+.~#?&\/\/=]*)/gm);
         if (!URLTest.test(this.settings.schema)){
             console.error("Schema file setting must be a complete URL. Ex: https://example.com/schema.json");
             return;
@@ -158,7 +159,7 @@ class JSQLManager {
     }
 
     public async ingest(url:string, table:string, type:"JSON" | "NDJSON" = "NDJSON"){
-        if (url.search(/^http/i) !== 0){
+        if (!URLTest.test(url)){
             console.error("Ingest URL must be a complete URL. Ex: https://example.com/data.json");
             return;
         }
