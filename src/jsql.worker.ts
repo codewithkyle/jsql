@@ -642,7 +642,7 @@ class JSQLWorker {
             }
         }
         for (const column in query.set){
-            query.set[column] = this.injectParameter(query.set[column], params);
+            query.set[this.injectParameter(column, params)] = this.injectParameter(query.set[column], params);
         }
         return query;
     }
