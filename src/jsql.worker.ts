@@ -144,10 +144,16 @@ class JSQLWorker {
                     for (let r = 0; r < output.length; r++){
                         let dirty = false;
                         for (const column in query.set){
-                            if (column in output[r]){
-                                output[r][column] = query.set[column];
-                                dirty = true;
-                            }
+			    if (column === "*"){
+				output[r] = query.set[column];
+				dirty = true;
+			    }
+			    else {
+				if (column in output[r]){
+                                    output[r][column] = query.set[column];
+                               	    dirty = true;
+                            	}
+			    }
                         }
                         if (dirty){
                             transactions.push(this.db.put(query.table, output[r]));
@@ -624,10 +630,15 @@ class JSQLWorker {
             const groups = segments.join(" ").trim().split(",");
             for (let i = 0; i < groups.length; i++){
                 const values = groups[i].trim().split("=");
-                if (values.length !== 2){
-                    throw `Invalid syntax at: ${groups[i]}`;
+                if (values.length === 2){
+                    query.set[values[0].trim()] = values[1].trim().replace(/^[\"\']|[\"\']$/g, "");
                 }
-                query.set[values[0].trim()] = values[1].trim().replace(/^[\"\']|[\"\']$/g, "");
+                else if (values.length === 1 {
+		    query.set["*"] = values[0].trim().replace(/^[\"\']|[\"\']$/g, "");
+		}
+		else {
+		    throw `Invalid syntax at: SET ${values.join(" ")}`;	
+		}
             }
         }
         for (const column in query.set){
