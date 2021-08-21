@@ -633,12 +633,12 @@ class JSQLWorker {
                 if (values.length === 2){
                     query.set[values[0].trim()] = values[1].trim().replace(/^[\"\']|[\"\']$/g, "");
                 }
-                else if (values.length === 1 {
-		    query.set["*"] = values[0].trim().replace(/^[\"\']|[\"\']$/g, "");
-		}
-		else {
-		    throw `Invalid syntax at: SET ${values.join(" ")}`;	
-		}
+                else if (values.length === 1) {
+                    query.set["*"] = values[0].trim().replace(/^[\"\']|[\"\']$/g, "");
+                }
+                else {
+                    throw `Invalid syntax at: SET ${values.join(" ")}`;	
+                }
             }
         }
         for (const column in query.set){
