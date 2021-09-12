@@ -42,9 +42,8 @@ class JSQLManager {
         return url;
     }
 
-    public start(settings:Partial<Settings> = {}):Promise<string|void>{
+    public async start(settings:Partial<Settings> = {}):Promise<string|void>{
         this.settings = Object.assign(this.settings, settings);
-        console.log(this.settings);
         const type = typeof this.settings.schema;
         if (type !== "string" && type !== "object"){
             console.error("Schema file setting must be a schema object or a URL");
@@ -54,12 +53,12 @@ class JSQLManager {
             console.error("Schema file setting must be a complete URL. Ex: https://example.com/schema.json");
             return;
         }
-        return new Promise(async (resolve, reject) => {
+        const version = await new Promise(async (resolve, reject) => {
             try{
                 const url = await this.getWorkerURL(this.settings.dbWorker);
                 this.worker = new Worker(url);
                 this.worker.onmessage = this.inbox.bind(this);
-                await new Promise((internalResolve, interalReject) => {
+                const version = await new Promise((internalResolve, interalReject) => {
                     const messageUid = uuid();
                     this.promises[messageUid] = {
                         success: internalResolve,
@@ -68,15 +67,20 @@ class JSQLManager {
                     this.worker.postMessage({
                         uid: messageUid,
                         type: "init",
-                        data: this.settings.schema,
+                        data: {
+                            schema: this.settings.schema,
+                            currentVersion: localStorage.getItem("JSQL_DB_VERSION") || null,
+                        }
                     });
                 });
                 this.flushQueue();
-                resolve();
+                resolve(version);
             } catch (e) {
                 reject(e);
             }
         });
+        localStorage.setItem("JSQL_DB_VERSION", `${version}`);
+        return;
     }
 
     private inbox(e:MessageEvent):void{

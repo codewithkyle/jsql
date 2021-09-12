@@ -24,7 +24,7 @@ class JSQLWorker {
             let output:any = null;
             switch (type){
                 case "init":
-                    await this.init(data);
+                    output = await this.init(data);
                     break;
                 case "query":
                     let customQuery = [];
@@ -63,9 +63,8 @@ class JSQLWorker {
 		}
 	}
 
-    private async init(a){
+    private async init({ schema: a, currentVersion }){
         let schema: Schema;
-        console.log(a);
         if (typeof a === "string"){
             const request = await fetch(a, {
                 method: "GET",
@@ -91,12 +90,45 @@ class JSQLWorker {
             }
             this.defaults[table.name] = columns;
         }
+        const pTables = {};
+        if (currentVersion !== null && parseInt(currentVersion) !== schema.version){
+            for (let i = 0; i < this.tables.length; i++){
+                if (this.tables[i]?.persist){
+                    pTables[this.tables[i].name] = [];
+                }
+            }
+            await new Promise(resolve => {
+                try {
+                    const open = indexedDB.open(schema.name, parseInt(currentVersion));
+                    open.onsuccess = async () => {
+                        const oldDB = open.result;
+                        for (const table in pTables){
+                            pTables[table] = await new Promise(tableResolve => {
+                                const tx = oldDB.transaction(table, 'readonly').objectStore(table).getAll();
+                                tx.onsuccess = () => {
+                                    tableResolve(tx.result);
+                                }
+                            });
+                        }
+                        oldDB.close();
+                        resolve();
+                    }
+                }
+                catch (e) {
+                    console.error(e);
+                    resolve();
+                }
+            });
+        }
+        await new Promise(resolve => {
+            setTimeout(resolve, 150);
+        });
         // @ts-expect-error
         this.db = await openDB(schema.name, schema.version, {
             upgrade(db, oldVersion, newVersion, transaction) {
-                // Purge old stores so we don't brick the JS runtime VM when upgrading
-                for (let i = 0; i < db.objectStoreNames.length; i++) {
-                    db.deleteObjectStore(db.objectStoreNames[i]);
+                // Purge old stores so we don't brick the JS runtime VM when upgrading 
+                for (const table of db.objectStoreNames) {
+                    db.deleteObjectStore(table);
                 }
                 for (let i = 0; i < schema.tables.length; i++) {
                     const table: Table = schema.tables[i];
@@ -117,7 +149,7 @@ class JSQLWorker {
                             unique: column?.unique ?? false,
                         });
                     }
-                }
+                } 
             },
             blocked() {
                 console.error("This app needs to restart. Close all tabs for this app and before relaunching.");
@@ -126,7 +158,15 @@ class JSQLWorker {
                 console.error("This app needs to restart. Close all tabs for this app and before relaunching.");
             },
         });
-        return;
+        const inserts = [];
+        for (const table in pTables){
+            for (let r = 0; r < pTables[table].length; r++){
+                inserts.push(this.db.put(table, pTables[table][r]));
+            }
+            
+        }
+        await Promise.all(inserts); 
+        return schema.version;
     }
 
     private async performQuery(queries:Array<Query>):Promise<Array<any>>{

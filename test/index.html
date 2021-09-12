@@ -29,11 +29,12 @@
         db.start({
             schema: {
                 name: "demo",
-                version: 1,
+                version: 6,
                 tables: [
                     {
                         name: "users",
                         keyPath: "uid",
+                        persist: true,
                         columns: [
                             {
                                 key: "uid",
