@@ -173,6 +173,7 @@ class JSQLWorker {
         let rows = [];
         for (let i = 0; i < queries.length; i++){
             const query = queries[i];
+            console.log(query);
             let output = [];
             let skipWhere = false;
             if (query.type !== "INSERT" && query.table !== "*"){
@@ -583,19 +584,19 @@ class JSQLWorker {
                     if (segments[i].length !== 2){
                         throw `Invalid syntax at: ${segments[i].join(" ")}`
                     }
-                    query.offset = parseInt(segments[i][1]);
+                    query.offset = parseInt(this.injectParameter(segments[i][1], params));
                     break;
                 case "LIMIT":
                     if (segments[i].length !== 2){
                         throw `Invalid syntax at: ${segments[i].join(" ")}`
                     }
-                    query.limit = parseInt(segments[i][1]);
+                    query.limit = parseInt(this.injectParameter(segments[i][1], params));
                     break;
                 case "GROUP":
-                    query = this.parseGroupBySegment(segments[i], query);
+                    query = this.parseGroupBySegment(segments[i], query, params);
                     break;
                 case "ORDER":
-                    query = this.parseOrderBySegment(segments[i], query);
+                    query = this.parseOrderBySegment(segments[i], query, params);
                     break;
                 case "WHERE":
                     query = this.parseWhereSegment(segments[i], query, params);
@@ -604,7 +605,7 @@ class JSQLWorker {
                     if (segments[i].length !== 2){
                         throw `Invalid syntax at: ${segments[i].join(" ")}`
                     }
-                    query.table = segments[i][1];
+                    query.table = this.injectParameter(segments[i][1], params);
                     break;
                 case "SELECT":
                     query.type = "SELECT";
@@ -615,20 +616,20 @@ class JSQLWorker {
                     break;
                 case "INSERT":
                     query.type = "INSERT";
-                    query = this.parseInsertSegment(segments[i], query);
+                    query = this.parseInsertSegment(segments[i], query, params);
                     break;
                 case "UPDATE":
                     if (segments[i].length !== 2){
                         throw `Invalid syntax at: ${segments[i].join(" ")}`
                     }
-                    query.table = segments[i][1];
+                    query.table = this.injectParameter(segments[i][1], params);
                     query.type = "UPDATE";
                     break;
                 case "RESET":
                     if (segments[i].length !== 2){
                         throw `Invalid syntax at: ${segments[i].join(" ")}`
                     }
-                    query.table = segments[i][1];
+                    query.table = this.injectParameter(segments[i][1], params);
                     query.type = "RESET";
                     break;
                 default:
@@ -682,6 +683,7 @@ class JSQLWorker {
     }
 
     private parseSetSegment(segments:Array<string>, query:Query, params:any):Query{
+        const columns = {};
         if (segments.length < 2)
         {
             throw `Invalid syntax at: ${segments.join(" ")}.`
@@ -694,18 +696,18 @@ class JSQLWorker {
             for (let i = 0; i < groups.length; i++){
                 const values = groups[i].trim().split("=");
                 if (values.length === 2){
-                    query.set[values[0].trim()] = values[1].trim().replace(/^[\"\']|[\"\']$/g, "");
+                    columns[values[0].trim()] = values[1].trim().replace(/^[\"\']|[\"\']$/g, "");
                 }
                 else if (values.length === 1) {
-                    query.set["*"] = values[0].trim().replace(/^[\"\']|[\"\']$/g, "");
+                    columns["*"] = values[0].trim().replace(/^[\"\']|[\"\']$/g, "");
                 }
                 else {
                     throw `Invalid syntax at: SET ${values.join(" ")}`;	
                 }
             }
         }
-        for (const column in query.set){
-            query.set[this.injectParameter(column, params)] = this.injectParameter(query.set[column], params);
+        for (const column in columns){
+            query.set[this.injectParameter(column, params)] = this.injectParameter(columns[column], params);
         }
         return query;
     }
@@ -828,13 +830,13 @@ class JSQLWorker {
                         // @ts-ignore
                         for (let c = 0; c < query.where[i].checks[k].length; c++){
                             const check = query.where[i].checks[k][c] as Check;
-                            const value = this.injectParameter(check.value, params);
-                            query.where[i].checks[k][c].value = value;
+                            query.where[i].checks[k][c].value = this.injectParameter(check.value, params);
+                            query.where[i].checks[k][c].column = this.injectParameter(check.column, params);
                         }
                     } else {
                         const check = query.where[i].checks[k] as Check;
-                        const value = this.injectParameter(check.value, params);
-                        query.where[i].checks[k].value = value;
+                        query.where[i].checks[k].value = this.injectParameter(check.value, params);
+                        query.where[i].checks[k].column = this.injectParameter(check.column, params);
                     }
                 }
             }
@@ -849,11 +851,11 @@ class JSQLWorker {
         if (query.uniqueOnly){
             throw `Invalid syntax. GROUP BY can not be used with UNIQUE or DISTINCT statements.`
         }
-        query.group = segments[2];
+        query.group = this.injectParameter(segments[2], params);
         return query;
     }
 
-    private parseOrderBySegment(segments:Array<string>, query:Query):Query{
+    private parseOrderBySegment(segments:Array<string>, query:Query, params):Query{
         if (segments.length < 3 || segments[1] !== "BY")
         {
             throw `Invalid syntax at: ${segments.join(" ")}.`
@@ -875,7 +877,7 @@ class JSQLWorker {
                     }
                 }
                 query.order = {
-                    column: segments[0],
+                    column: this.injectParameter(segments[0], params),
                     // @ts-ignore
                     by: sort,
                 }
@@ -930,17 +932,20 @@ class JSQLWorker {
                 throw `Invalid params. Missing key: ${key}`;
             }
         }
+        else if (typeof value === "string"){
+            value = value.replace(/\[|\]/g, "").trim();
+        }
         return value;
     }
 
-    private parseInsertSegment(segments:Array<string>, query:Query):Query{
+    private parseInsertSegment(segments:Array<string>, query:Query, params):Query{
         if (segments.length < 3 || segments[1] !== "INTO")
         {
             throw `Invalid syntax at: ${segments.join(" ")}.`
         }
         else if (segments.length === 3)
         {
-            query.table = segments[2];
+            query.table = this.injectParameter(segments[2], params);
         }
         else
         {
@@ -973,7 +978,7 @@ class JSQLWorker {
             const type = segments[1].match(/\w+/)[0].trim().toUpperCase();
             const column = segments[1].match(/\(.*?\)/)[0].replace(/\(|\)/g, "").trim();
             query.function = type as SQLFunction;
-            query.columns = [column];
+            query.columns = [this.injectParameter(column, params)];
         }
         if (query.columns === null){
             if (segments.length === 1)
