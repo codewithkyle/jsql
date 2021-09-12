@@ -44,7 +44,12 @@ class JSQLManager {
 
     public start(settings:Partial<Settings> = {}):Promise<string|void>{
         this.settings = Object.assign(this.settings, settings);
-        if (this.settings.schema.indexOf("http") !== 0){
+        const type = typeof this.settings.scheam;
+        if (type !== "string" && type !== "object"){
+            console.error("Schema file setting must be a schema object or a URL");
+            return;
+        }
+        else if (type === "string" && this.settings.schema.indexOf("http") !== 0){
             console.error("Schema file setting must be a complete URL. Ex: https://example.com/schema.json");
             return;
         }

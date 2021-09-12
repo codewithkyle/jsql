@@ -1,6 +1,6 @@
 import type { Table, Schema, Column, Query, SQLFunction, Condition, Check } from "../jsql";
 import { openDB } from "./lib/idb";
-import Fuse from 'fuse.js';
+import Fuse from "fuse.js";
 
 class JSQLWorker {
     private db:any;
@@ -57,18 +57,24 @@ class JSQLWorker {
 		}
 	}
 
-    private async init(url){
-        const request = await fetch(url, {
-            method: "GET",
-            headers: new Headers({
-                Accept: "application/json",
-            }),
-            credentials: "include",
-        });
-        if (!request.ok){
-            throw `${request.status}: ${request.statusText}`;
+    private async init(a){
+        let schema: Schema;
+        if (typeof a === "string"){
+            const request = await fetch(a, {
+                method: "GET",
+                headers: new Headers({
+                    Accept: "application/json",
+                }),
+                credentials: "include",
+            });
+            if (!request.ok){
+                throw `${request.status}: ${request.statusText}`;
+            }
+            schema = await request.json();
         }
-        const schema: Schema = await request.json();
+        else {
+            schema = a;
+        }
         this.tables = schema.tables;
         // @ts-expect-error
         this.db = await openDB(schema.name, schema.version, {

@@ -27,7 +27,45 @@
     <script type="module">
         import db from "./jsql.js";
         db.start({
-            scheam: `./schema.json`,
+            scheam: {
+                name: "demo",
+                version: 1,
+                tables: [
+                    {
+                        name: "users",
+                        keyPath: "uid",
+                        columns: [
+                            {
+                                key: "uid",
+                                unique: true
+                            },
+                            {
+                                key: "name"
+                            },
+                            {
+                                key: "customerId"
+                            }
+                        ]
+                    },
+                    {
+                        name: "orders",
+                        keyPath: "id",
+                        columns: [
+                            {
+                                key: "id",
+                                unique: true,
+                                autoIncrement: true
+                            },
+                            {
+                                key: "name"
+                            },
+                            {
+                                key: "products"
+                            }
+                        ]
+                    }
+                ]
+            },
             dbWorker: `./jsql.worker.js`,
             streamWorker: `./stream.worker.js`,
         }).then(() => {
