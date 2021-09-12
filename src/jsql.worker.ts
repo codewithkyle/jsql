@@ -5,10 +5,16 @@ import Fuse from "fuse.js";
 class JSQLWorker {
     private db:any;
     private tables: Array<Table>;
+    private defaults: {
+        [table:string]: {
+            [column:string]: any,
+        },
+    };
 
     constructor(){
         this.db = null;
         this.tables = null;
+        this.defaults = {};
         self.onmessage = this.inbox.bind(this);
     }
 
@@ -59,6 +65,7 @@ class JSQLWorker {
 
     private async init(a){
         let schema: Schema;
+        console.log(a);
         if (typeof a === "string"){
             const request = await fetch(a, {
                 method: "GET",
@@ -76,6 +83,14 @@ class JSQLWorker {
             schema = a;
         }
         this.tables = schema.tables;
+        for (let i = 0; i < this.tables.length; i++){
+            const table = this.tables[i];
+            const columns = {};
+            for (let c = 0; c < table.columns.length; c++){
+                columns[table.columns[c].key] = table.columns[c]?.default ?? null;
+            }
+            this.defaults[table.name] = columns;
+        }
         // @ts-expect-error
         this.db = await openDB(schema.name, schema.version, {
             upgrade(db, oldVersion, newVersion, transaction) {
@@ -150,16 +165,16 @@ class JSQLWorker {
                     for (let r = 0; r < output.length; r++){
                         let dirty = false;
                         for (const column in query.set){
-			    if (column === "*"){
-				output[r] = query.set[column];
-				dirty = true;
-			    }
-			    else {
-				if (column in output[r]){
+            			    if (column === "*"){
+    		            		output[r] = query.set[column];
+            				    dirty = true;
+			                }
+            			    else {
+                                if (column in output[r]){
                                     output[r][column] = query.set[column];
-                               	    dirty = true;
-                            	}
-			    }
+                                    dirty = true;
+                                }
+			                }
                         }
                         if (dirty){
                             transactions.push(this.db.put(query.table, output[r]));
@@ -184,7 +199,9 @@ class JSQLWorker {
                     break;
                 case "INSERT":
                     for (const row of query.values){
-                        await this.db.put(query.table, row);
+                        const a = {...this.defaults[query.table]};
+                        const b = Object.assign(a, row);
+                        await this.db.put(query.table, b);
                     }
                     output = query.values;
                     break;
@@ -836,16 +853,36 @@ class JSQLWorker {
         {
             query.values = [];
             segments.splice(0, 1);
-            const values = segments.join("").replace(/\(|\)|\s/g, "").split(",");
-            for (let i = 0; i < values.length; i++){
-                query.values.push(this.injectParameter(values[i], params));
+            const objects = segments.join("").match(/(?<=\().*?(?=\))/g) || [];
+            for (let i = 0; i < objects.length; i++){
+                const values = objects[i].split(",");
+                let obj = {...this.defaults[query.table]};
+                if (values.length === 1 && values[0].trim().indexOf("$") === 0){
+                    obj = Object.assign(obj, this.injectParameter(values[i], params));
+                    query.values.push(obj);
+                }
+                else if (values.length >= 1) {
+                    let v = 0;
+                    for (const col in obj){
+                        if (v >= values.length){
+                            break;
+                        }
+                        obj[col] = this.injectParameter(values[v], params);
+                        v++;
+                    }
+                    query.values.push(obj);
+                }
+                else {
+                    throw `Invalid syntax. VALUE error at ${objects[i]}`;
+                }
             }
+            console.log(query.values);
         }
         return query;
     }
 
     private injectParameter(value:string, params:object){
-        if (value.indexOf("$") === 0){
+        if (value.toString().indexOf("$") === 0){
             const key = value.substring(1, value.length);
             if (key in params){
                 return params[key];

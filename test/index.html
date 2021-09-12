@@ -27,7 +27,7 @@
     <script type="module">
         import db from "./jsql.js";
         db.start({
-            scheam: {
+            schema: {
                 name: "demo",
                 version: 1,
                 tables: [
@@ -40,7 +40,8 @@
                                 unique: true
                             },
                             {
-                                key: "name"
+                                key: "name",
+                                default: "Jeff",
                             },
                             {
                                 key: "customerId"
@@ -69,6 +70,7 @@
             dbWorker: `./jsql.worker.js`,
             streamWorker: `./stream.worker.js`,
         }).then(() => {
+            /*
             if (!localStorage.getItem("loaded-once")){
                 db.ingest(`${location.origin}/cards.ndjson`, "cards").then(() => {
                     alert("Application is ready");
@@ -85,6 +87,7 @@
                     });
                 }
             }
+            */
         }).catch(e => {
             console.error(e);
         });
@@ -96,9 +99,10 @@
             try{
                 const value = input.value;
                 const output = await db.query(value, {
-                    creatureCost: 11,
-                    artifactCost: 0,
-                    query: "turtle"
+                    user: {
+                        customerId: 2,
+                        uid: 2,
+                    }
                 });
                 console.log(output);
             } catch (e) {
