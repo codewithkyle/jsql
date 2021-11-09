@@ -20,6 +20,10 @@
   },
   "author": "Kyle Andrews <codingwithkyle@gmail.com>",
   "license": "MIT",
+  "bugs": {
+    "url" : "https://github.com/codewithkyle/jsql/issues",
+    "email" : "codingwithkyle@gmail.com"
+  },
   "devDependencies": {
     "esbuild": "^0.11.23",
     "esinstall": "^1.1.7",
@@ -37,7 +41,6 @@
   "docs": {
     "name": "JSQL",
     "github": "https://github.com/codewithkyle/jsql",
-    "bugs": "https://github.com/codewithkyle/jsql/issues",
     "npm": "https://www.npmjs.com/package/@codewithkyle/jsql"
   }
 }
