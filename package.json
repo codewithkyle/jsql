@@ -37,6 +37,7 @@
   "docs": {
     "name": "JSQL",
     "github": "https://github.com/codewithkyle/jsql",
+    "bugs": "https://github.com/codewithkyle/jsql/issues",
     "npm": "https://www.npmjs.com/package/@codewithkyle/jsql"
   }
 }
