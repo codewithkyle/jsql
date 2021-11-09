@@ -54,7 +54,7 @@
     <main>
         
         <static-navigation-component>
-            <a class="is-active" href="/readme" data-slug="readme">readme</a>
+            <a class="" href="/readme" data-slug="readme">readme</a>
         <button data-slug="clauses-and-operators" class="">
             <span>clauses and operators</span>
             <i>
@@ -85,39 +85,26 @@
             <a class="" href="/guides/ingesting-data" data-slug="guides/ingesting-data">ingesting data</a><a class="" href="/guides/security" data-slug="guides/security">security</a><a class="" href="/guides/writing-queries" data-slug="guides/writing-queries">writing queries</a>
         </nav-children-container>
     
-        <button data-slug="statements" class="">
+        <button data-slug="statements" class="is-open">
             <span>statements</span>
             <i>
                 <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" role="img" viewBox="0 0 192 512"><path fill="currentColor" d="M0 384.662V127.338c0-17.818 21.543-26.741 34.142-14.142l128.662 128.662c7.81 7.81 7.81 20.474 0 28.284L34.142 398.804C21.543 411.404 0 402.48 0 384.662z"/></svg>
             </i>
         </button>
         <nav-children-container>
-            <a class="" href="/statements/delete" data-slug="statements/delete">delete</a><a class="" href="/statements/insert-into" data-slug="statements/insert-into">insert into</a><a class="" href="/statements/reset" data-slug="statements/reset">reset</a><a class="" href="/statements/select" data-slug="statements/select">select</a><a class="" href="/statements/update" data-slug="statements/update">update</a>
+            <a class="is-active" href="/statements/delete" data-slug="statements/delete">delete</a><a class="" href="/statements/insert-into" data-slug="statements/insert-into">insert into</a><a class="" href="/statements/reset" data-slug="statements/reset">reset</a><a class="" href="/statements/select" data-slug="statements/select">select</a><a class="" href="/statements/update" data-slug="statements/update">update</a>
         </nav-children-container>
     
         </static-navigation-component>
     
         <static-doc-view>
-            <h2 id="what-is-jsql">What is JSQL?</h2>
-<p>JSQL is a JavaScript library built to provide access to the browsers IndexedDB database using SQL query strings.</p>
-<h2 id="what-is-sql">What is SQL?</h2>
-<ul>
-<li>SQL stands for Structured Query Language</li>
-<li>SQL lets you access and manipulate databases</li>
-<li>SQL became a standard of the American National Standards Institute (ANSI) in 1986, and of the International Organization for Standardization (ISO) in 1987</li>
-</ul>
-<h2 id="what-can-jsql-do">What Can JSQL do?</h2>
-<ul>
-<li>JSQL can execute queries against a database</li>
-<li>JSQL can retrieve data from a database</li>
-<li>JSQL can insert records in a database</li>
-<li>JSQL can update records in a database</li>
-<li>JSQL can delete records from a database</li>
-<li>JSQL can create new databases</li>
-<li>JSQL can create new tables in a database</li>
-</ul>
-<h2 id="sql-is-a-standard-but">SQL is a Standard BUT....</h2>
-<p>Although SQL is an ANSI/ISO standard, there are different versions of the SQL language. To be compliant with the ANSI standard, we support at least the major commands (such as <code>SELECT</code>, <code>UPDATE</code>, <code>DELETE</code>, <code>INSERT</code>, and <code>WHERE</code>) in a similar manner.</p>
+            <h1 id="delete">Delete</h1>
+<p>The <code>DELETE</code> statement is used to delete existing records in a table.</p>
+<pre><code>DELETE FROM table_name WHERE condition
+</code></pre>
+<blockquote>
+<p><strong>Note:</strong> Be careful when deleting records in a table! Notice the <code>WHERE</code> clause in the <code>DELETE</code> statement. The <code>WHERE</code> clause specifies which record(s) should be deleted. If you omit the <code>WHERE</code> clause, all records in the table will be deleted!</p>
+</blockquote>
 
         </static-doc-view>
         <static-subnav-component></static-subnav-component>

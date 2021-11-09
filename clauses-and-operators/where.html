@@ -54,15 +54,15 @@
     <main>
         
         <static-navigation-component>
-            <a class="is-active" href="/readme" data-slug="readme">readme</a>
-        <button data-slug="clauses-and-operators" class="">
+            <a class="" href="/readme" data-slug="readme">readme</a>
+        <button data-slug="clauses-and-operators" class="is-open">
             <span>clauses and operators</span>
             <i>
                 <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" role="img" viewBox="0 0 192 512"><path fill="currentColor" d="M0 384.662V127.338c0-17.818 21.543-26.741 34.142-14.142l128.662 128.662c7.81 7.81 7.81 20.474 0 28.284L34.142 398.804C21.543 411.404 0 402.48 0 384.662z"/></svg>
             </i>
         </button>
         <nav-children-container>
-            <a class="" href="/clauses-and-operators/group-by" data-slug="clauses-and-operators/group-by">group by</a><a class="" href="/clauses-and-operators/order-by" data-slug="clauses-and-operators/order-by">order by</a><a class="" href="/clauses-and-operators/pagination" data-slug="clauses-and-operators/pagination">pagination</a><a class="" href="/clauses-and-operators/sql-functions" data-slug="clauses-and-operators/sql-functions">sql functions</a><a class="" href="/clauses-and-operators/union" data-slug="clauses-and-operators/union">union</a><a class="" href="/clauses-and-operators/where" data-slug="clauses-and-operators/where">where</a>
+            <a class="" href="/clauses-and-operators/group-by" data-slug="clauses-and-operators/group-by">group by</a><a class="" href="/clauses-and-operators/order-by" data-slug="clauses-and-operators/order-by">order by</a><a class="" href="/clauses-and-operators/pagination" data-slug="clauses-and-operators/pagination">pagination</a><a class="" href="/clauses-and-operators/sql-functions" data-slug="clauses-and-operators/sql-functions">sql functions</a><a class="" href="/clauses-and-operators/union" data-slug="clauses-and-operators/union">union</a><a class="is-active" href="/clauses-and-operators/where" data-slug="clauses-and-operators/where">where</a>
         </nav-children-container>
     
         <button data-slug="first-steps" class="">
@@ -98,26 +98,66 @@
         </static-navigation-component>
     
         <static-doc-view>
-            <h2 id="what-is-jsql">What is JSQL?</h2>
-<p>JSQL is a JavaScript library built to provide access to the browsers IndexedDB database using SQL query strings.</p>
-<h2 id="what-is-sql">What is SQL?</h2>
+            <h1 id="where-clause">Where Clause</h1>
+<p>The <code>WHERE</code> clause is used to filter records. It is used to extract only those records that fulfill a specified condition.</p>
+<pre><code>SELECT * FROM table_name WHERE condition
+</code></pre>
+<blockquote>
+<p><strong>Note:</strong> the <code>WHERE</code> clause is not only used in <code>SELECT</code> statements.</p>
+</blockquote>
+<h2 id="and--or-operators">AND / OR Operators</h2>
+<p>The <code>WHERE</code> clause can be combined with <code>AND</code> and <code>OR</code> operators. The <code>AND</code> and <code>OR</code> operators are used to filter records based on more than one condition:</p>
 <ul>
-<li>SQL stands for Structured Query Language</li>
-<li>SQL lets you access and manipulate databases</li>
-<li>SQL became a standard of the American National Standards Institute (ANSI) in 1986, and of the International Organization for Standardization (ISO) in 1987</li>
+<li>The <code>AND</code> operator displays a record if all the conditions separated by <code>AND</code> are TRUE.</li>
+<li>The <code>OR</code> operator displays a record if any of the conditions separated by <code>OR</code> is TRUE.</li>
 </ul>
-<h2 id="what-can-jsql-do">What Can JSQL do?</h2>
-<ul>
-<li>JSQL can execute queries against a database</li>
-<li>JSQL can retrieve data from a database</li>
-<li>JSQL can insert records in a database</li>
-<li>JSQL can update records in a database</li>
-<li>JSQL can delete records from a database</li>
-<li>JSQL can create new databases</li>
-<li>JSQL can create new tables in a database</li>
-</ul>
-<h2 id="sql-is-a-standard-but">SQL is a Standard BUT....</h2>
-<p>Although SQL is an ANSI/ISO standard, there are different versions of the SQL language. To be compliant with the ANSI standard, we support at least the major commands (such as <code>SELECT</code>, <code>UPDATE</code>, <code>DELETE</code>, <code>INSERT</code>, and <code>WHERE</code>) in a similar manner.</p>
+<pre><code>SELECT * FROM table_name WHERE condition = value OR condition = value
+</code></pre>
+<p>You can also combine the AND / OR operators along with using parenthesis to form complex expressions:</p>
+<pre><code>SELECT * FROM table_name WHERE condition = value AND (condition = value OR condition = value)
+</code></pre>
+<h3 id="known-limitations">Known Limitations</h3>
+<p>Currently JSQL is limited to single top level parenthesis groups and any query preformed with nested groups will result in a <code>Invalid Syntax</code> error. For the time being queries will need to be written to work around this limitation. In the example below the top level parenthesis group is only a visual aid for developers, functionally the statement is the same as the one below it.</p>
+<pre><code>SELECT * FROM table_name WHERE (a=1 OR a=2) AND (b=1 AND (c=1 OR c=2))
+SELECT * FROM table_name WHERE (a=1 OR a=2) AND b=1 AND (c=1 OR c=2)
+</code></pre>
+<p>Since the <code>AND</code> operator requires the values on both sides to return true removing the top level parenthesis doesn&#39;t have an effect on the system. In the example below the same type of rewrite is applied to an <code>OR</code> operation.</p>
+<pre><code>SELECT * FROM table_name WHERE (a=1 OR a=2) AND (b=1 OR (c=1 OR c=2))
+SELECT * FROM table_name WHERE (a=1 OR a=2) AND (b=1 OR c=1 OR c=2)
+</code></pre>
+<p>Again, the top level parenthesis doesn&#39;t have an effect on the logic being performed, it&#39;s simply a visual aid. However, complex queries do sometimes require nested parenthesis like in the example below where we need to preform several <code>OR</code> and <code>AND</code> operations.</p>
+<pre><code>SELECT * FROM table_name WHERE (a=1 OR a=2) AND (b=1 OR (c=1 AND d=1) OR (d=2 AND e=1))
+</code></pre>
+<p>We are still able to work around this limitation, however, it requires us to repeat the <code>(a=1 OR a=2)</code> check across three separate conditions.</p>
+<pre><code>SELECT * FROM table_name WHERE (a=1 OR a=2) AND b=1 OR (a=1 OR a=2) AND c=1 AND d=1 OR (a=1 OR a=2) AND d=2 AND e=1)
+</code></pre>
+<p>Support for nested groups is currently on the project roadmap with the current goal being the addition of second level groups.</p>
+<h4 id="what-if-i-need-support-for-deeply-3-layer-nested-groups">What if I need support for deeply (3+ layer) nested groups?</h4>
+<p>Honestly, you have a few options available:</p>
+<ol>
+<li>Write your queries to work within the current limitations.</li>
+<li>Perform your complex queries on your actual SQL database.</li>
+<li>Switch to a proper SQL database implementation such as <a href="https://sql.js.org/#/">sql.js</a> (SQLite via WASM)</li>
+<li>Fork this repository, implement this feature, and become the hero we need but don&#39;t deserve.</li>
+</ol>
+<h2 id="logical-operators">Logical Operators</h2>
+<p>When creating <code>WHERE</code> clauses you can use the following logical operators beyond the traditional <code>=</code> operator.</p>
+<pre><code class="language-typescript">type CheckOperation = &quot;=&quot; | &quot;==&quot; | &quot;!=&quot; | &quot;!==&quot; | &quot;&gt;&quot; | &quot;&lt;&quot; | &quot;&gt;=&quot; | &quot;&lt;=&quot; | &quot;!&gt;=&quot; | &quot;!&lt;=&quot; | &quot;!&gt;&quot; | &quot;!&lt;&quot; | &quot;LIKE&quot; | &quot;INCLUDES&quot; | &quot;EXCLUDES&quot;
+</code></pre>
+<blockquote>
+<p><strong>Note</strong>: these operators relate to the JavaScript operators where <code>=</code> would be <code>==</code> and <code>==</code> would be <code>===</code> so you&#39;ll need to keep in mind the <a href="https://github.com/denysdovhan/wtfjs#-examples">whacky way JavaScript handles equality</a>.</p>
+</blockquote>
+<h2 id="using-null-values">Using <code>NULL</code> Values</h2>
+<p>Use parameter injection to provide the <code>null</code> value.</p>
+<pre><code class="language-javascript">await db.query(&quot;SELECT * FROM table_name WHERE column_name = $value&quot;, { value: null });
+</code></pre>
+<h2 id="search">Search</h2>
+<p>The <code>LIKE</code> operator is used in a <code>WHERE</code> clause to search for a specified pattern in a column.</p>
+<pre><code>SELECT * FROM table_name WHERE column LIKE value
+</code></pre>
+<blockquote>
+<p><strong>Note:</strong> Search uses a modified <a href="https://en.wikipedia.org/wiki/Bitap_algorithm">Bitap algorithm</a> implemented via <a href="https://fusejs.io/">Fuse.js</a>. Also note that we&#39;ve chosen to override the Fuse.js <code>ignoreLocation</code> default to true. This means that if the columns value contains the value at any location within the string it will always be included in the output. We also use a strict threshold of <code>0.0</code> meaning Fuse must find an exact match in order to return the result.</p>
+</blockquote>
 
         </static-doc-view>
         <static-subnav-component></static-subnav-component>
