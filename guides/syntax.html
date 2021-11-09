@@ -65,24 +65,14 @@
             <a class="" href="/clauses-and-operators/group-by" data-slug="clauses-and-operators/group-by">group by</a><a class="" href="/clauses-and-operators/order-by" data-slug="clauses-and-operators/order-by">order by</a><a class="" href="/clauses-and-operators/pagination" data-slug="clauses-and-operators/pagination">pagination</a><a class="" href="/clauses-and-operators/sql-functions" data-slug="clauses-and-operators/sql-functions">sql functions</a><a class="" href="/clauses-and-operators/union" data-slug="clauses-and-operators/union">union</a><a class="" href="/clauses-and-operators/where" data-slug="clauses-and-operators/where">where</a>
         </nav-children-container>
     
-        <button data-slug="first-steps" class="is-open">
-            <span>first steps</span>
-            <i>
-                <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" role="img" viewBox="0 0 192 512"><path fill="currentColor" d="M0 384.662V127.338c0-17.818 21.543-26.741 34.142-14.142l128.662 128.662c7.81 7.81 7.81 20.474 0 28.284L34.142 398.804C21.543 411.404 0 402.48 0 384.662z"/></svg>
-            </i>
-        </button>
-        <nav-children-container>
-            <a class="is-active" href="/first-steps/installation" data-slug="first-steps/installation">installation</a><a class="" href="/first-steps/setup" data-slug="first-steps/setup">setup</a><a class="" href="/first-steps/syntax" data-slug="first-steps/syntax">syntax</a>
-        </nav-children-container>
-    
-        <button data-slug="guides" class="">
+        <button data-slug="guides" class="is-open">
             <span>guides</span>
             <i>
                 <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" role="img" viewBox="0 0 192 512"><path fill="currentColor" d="M0 384.662V127.338c0-17.818 21.543-26.741 34.142-14.142l128.662 128.662c7.81 7.81 7.81 20.474 0 28.284L34.142 398.804C21.543 411.404 0 402.48 0 384.662z"/></svg>
             </i>
         </button>
         <nav-children-container>
-            <a class="" href="/guides/ingesting-data" data-slug="guides/ingesting-data">ingesting data</a><a class="" href="/guides/security" data-slug="guides/security">security</a><a class="" href="/guides/writing-queries" data-slug="guides/writing-queries">writing queries</a>
+            <a class="" href="/guides/ingesting-data" data-slug="guides/ingesting-data">ingesting data</a><a class="" href="/guides/installation" data-slug="guides/installation">installation</a><a class="" href="/guides/security" data-slug="guides/security">security</a><a class="" href="/guides/setup" data-slug="guides/setup">setup</a><a class="is-active" href="/guides/syntax" data-slug="guides/syntax">syntax</a><a class="" href="/guides/writing-queries" data-slug="guides/writing-queries">writing queries</a>
         </nav-children-container>
     
         <button data-slug="statements" class="">
@@ -98,12 +88,28 @@
         </static-navigation-component>
     
         <static-doc-view>
-            <h1 id="installation">Installation</h1>
-<p>Install via NPM</p>
-<pre><code class="language-bash">npm i -S @codewithkyle/jsql
+            <h1 id="syntax">Syntax</h1>
+<h2 id="sql-statements">SQL Statements</h2>
+<p>Most of the actions you need to perform on a database are done with SQL statements. The following SQL statement selects all the records in the &quot;Customers&quot; table:</p>
+<pre><code>SELECT * FROM Customers
 </code></pre>
-<p>Install via CDN</p>
-<pre><code class="language-javascript">import db from &quot;https://unpkg.com/@codewithkyle/jsql@1/jsql.js&quot;;
+<h2 id="supported-sql-commands">Supported SQL Commands:</h2>
+<ul>
+<li><code>SELECT</code> - extracts data from a database</li>
+<li><code>UPDATE</code> - updates data in a database</li>
+<li><code>DELETE</code> - deletes data from a database</li>
+<li><code>INSERT INTO</code> - inserts new data into a database</li>
+</ul>
+<h2 id="injecting-parameters">Injecting Parameters</h2>
+<p>If you need to provide non-string values use parameter injections. In the following SQL statement the number <code>4</code> will be injected into the query:</p>
+<pre><code>SELECT * from Customers WHERE customerId = $id
+</code></pre>
+<p>In JavaScript you will provide the parameter to the parameters object after your query:</p>
+<pre><code class="language-typescript">const customer = await db.query(&quot;SELECT * from Customers WHERE customerId = $id&quot;, { id: 4 });
+</code></pre>
+<h2 id="reserved-keywords">Reserved Keywords</h2>
+<p>Some keywords such as <code>ORDER</code> are reserved. If you wish to use a reserved keyword as a column name you will need to wrap the column name within square brackets <code>[ ]</code> when writing your SQL queries.</p>
+<pre><code>SELECT [order], name, uid FROM table_name ORDER BY [order] DESC
 </code></pre>
 
         </static-doc-view>
