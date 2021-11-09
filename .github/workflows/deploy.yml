@@ -16,7 +16,7 @@ jobs:
                   node-version: 14.2.0
 
             - name: Install NPM Packages
-              run: npm ci
+              run: npm install
 
             - name: Build
               run: npm run predeploy
