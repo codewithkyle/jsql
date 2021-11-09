@@ -1,0 +1,144 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>JSQL</title>
+    <meta name="description" content="Asynchronously access and manage your IndexedDB databases using SQL queries.">
+    <meta name="keywords" content="">
+    <link rel="icon" href="null">
+
+    <link href="/css/normalize.css" rel="stylesheet">
+    <link href="/css/brixi.css" rel="stylesheet">
+    <link href="/css/skeleton.css" rel="stylesheet">
+    <link href="/css/layout.css" rel="stylesheet">
+    <link href="/css/navigation.css" rel="stylesheet">
+    <link href="/css/docs.css" rel="stylesheet">
+    <link href="/css/subnav.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/highlight.css">
+    <script src="https://unpkg.com/@highlightjs/cdn-assets@^11/highlight.min.js"></script>
+
+    <script type="module" src="/js/bootstrap.js"></script>
+</head>
+<body>
+    <header flex="row nowrap items-center justify-between">
+        <button id="nav-menu" onclick="document.documentElement.classList.toggle('menu-open');" aria-label="toggle navigation menu">
+            <svg xmlns="http://www.w3.org/2000/svg" class="menu-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" class="close-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+        <a href="/" class="font-bold" id="logo">
+            JSQL
+        </a>
+        <div flex="items-center row nowrap">
+            <nav>
+                
+                    <span class="font-sm font-grey-500">v1.1.0</span>
+                
+                
+                    <a aria-label="GitHub icon" href="https://github.com/codewithkyle/jsql">
+                        <svg style="width:18px;height:18px;" aria-hidden="true" focusable="false" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><path fill="currentColor" d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"></path></svg>
+                    </a>
+                
+                
+                
+            </nav>
+        </div>
+    </header>
+    <main>
+        
+        <static-navigation-component>
+            <a class="" href="/readme" data-slug="readme">readme</a>
+        <button data-slug="first-steps" class="is-open">
+            <span>first steps</span>
+            <i>
+                <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" role="img" viewBox="0 0 192 512"><path fill="currentColor" d="M0 384.662V127.338c0-17.818 21.543-26.741 34.142-14.142l128.662 128.662c7.81 7.81 7.81 20.474 0 28.284L34.142 398.804C21.543 411.404 0 402.48 0 384.662z"/></svg>
+            </i>
+        </button>
+        <nav-children-container>
+            <a class="" href="/first-steps/installation" data-slug="first-steps/installation">installation</a><a class="is-active" href="/first-steps/setup" data-slug="first-steps/setup">setup</a><a class="" href="/first-steps/syntax" data-slug="first-steps/syntax">syntax</a><a class="" href="/first-steps/writing-queries" data-slug="first-steps/writing-queries">writing queries</a>
+        </nav-children-container>
+    
+        </static-navigation-component>
+    
+        <static-doc-view>
+            <h1 id="setup">Setup</h1>
+<p>We recommend downloading the Web Worker JavaScript files from the unpkg CDN and hosting the files yourself. Ideally from your own server or CDN.</p>
+<h3 id="jsql-database-worker">JSQL Database Worker</h3>
+<ul>
+<li><a href="https://unpkg.com/@codewithkyle/jsql@1/jsql.worker.js">v1.x.x</a></li>
+</ul>
+<h3 id="stream-parser-worker">Stream Parser Worker</h3>
+<ul>
+<li><a href="https://unpkg.com/@codewithkyle/jsql@1/stream.worker.js">v1.x.x</a></li>
+</ul>
+<h2 id="javascript">JavaScript</h2>
+<pre><code class="language-javascript">import db from &quot;https://unpkg.com/@codewithkyle/jsql@1/jsql.js&quot;;
+
+// Start the database
+db.start();
+
+// Override file URLs
+db.start({
+    scheam: `https://example.com/scheam.json`, // default - also supports an object
+    dbWorker: `https://example.com/js/jsql.worker.js`, // defaults to CDN
+    streamWorker: `https://example.com/js/stream.worker.js`, // defaults to CDN
+});
+</code></pre>
+<h2 id="schema">Schema</h2>
+<p>You can control the IndexedDB schema through a JSON file, API response, or hard code a schema object. Database changes are triggered by changing the <code>version</code> integer.</p>
+<pre><code class="language-json">{
+    &quot;name&quot;: &quot;demo&quot;,
+    &quot;version&quot;: 1,
+    &quot;tables&quot;: [
+        {
+            &quot;name&quot;: &quot;users&quot;,
+            &quot;keyPath&quot;: &quot;uid&quot;,
+            &quot;persist&quot;: true,
+            &quot;columns&quot;: [
+                {
+                    &quot;key&quot;: &quot;uid&quot;,
+                    &quot;unique&quot;: true
+                },
+                {
+                    &quot;key&quot;: &quot;name&quot;,
+                    &quot;default&quot;: &quot;John Smith&quot;
+                },
+                {
+                    &quot;key&quot;: &quot;customerId&quot;
+                }
+            ]
+        },
+        {
+            &quot;name&quot;: &quot;orders&quot;,
+            &quot;keyPath&quot;: &quot;id&quot;,
+            &quot;columns&quot;: [
+                {
+                    &quot;key&quot;: &quot;id&quot;,
+                    &quot;unique&quot;: true,
+                    &quot;autoIncrement&quot;: true
+                },
+                {
+                    &quot;key&quot;: &quot;name&quot;
+                },
+                {
+                    &quot;key&quot;: &quot;products&quot;
+                }
+            ]
+        }
+    ]
+}
+</code></pre>
+
+        </static-doc-view>
+        <static-subnav-component></static-subnav-component>
+    </main>
+    <textarea id="clipboard-input" tabindex="-1"></textarea>
+</body>
+</html>
