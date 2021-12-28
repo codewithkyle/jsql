@@ -75,7 +75,13 @@ export type Settings = {
 
 export class Database {
     public start(settings?: Partial<Settings>): Promise<string | void>;
-    public query(SQL: string, params?: unknown): Promise<any>;
+    public query(
+        SQL: string,
+        params?: {
+            [key: string]: any;
+        } | null,
+        debug?: boolean
+    ): Promise<any>;
     public ingest(
         url: string,
         table: string,

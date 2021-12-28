@@ -148,7 +148,13 @@ class JSQLManager {
         }
     }
 
-    public query(SQL: string, params: any = null, debug = false): Promise<any> {
+    public query(
+        SQL: string,
+        params: {
+            [key: string]: any;
+        } | null = null,
+        debug = false
+    ): Promise<any> {
         return new Promise((resolve, reject) => {
             this.send(
                 "sql",
