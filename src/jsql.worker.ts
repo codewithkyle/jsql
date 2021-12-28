@@ -54,6 +54,9 @@ class JSQLWorker {
             }
             this.send("response", output, uid);
         } catch (e) {
+            if (data?.sql?.length) {
+                e = `${e} (${data.sql})`;
+            }
             this.send("error", e, uid);
         }
     }
@@ -625,13 +628,13 @@ class JSQLWorker {
                 segment.indexOf("/") !== -1 ||
                 segment.indexOf("%") !== -1
             ) {
-                throw `Invalid syntax. Arithmetic operators are not currently supported ${segment}`;
+                throw `Invalid syntax. Arithmetic operators are not currently supported.`;
             } else if (
                 segment.indexOf("&") !== -1 ||
                 segment.indexOf("|") !== -1 ||
                 segment.indexOf("^") !== -1
             ) {
-                throw `Invalid syntax. Bitwise operators are not currently supported`;
+                throw `Invalid syntax. Bitwise operators are not currently supported.`;
             }
             switch (segments[i][0].toUpperCase()) {
                 case "SET":
