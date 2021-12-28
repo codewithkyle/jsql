@@ -9,11 +9,13 @@ export type Table = {
     columns: Array<Column>;
     keyPath?: string;
     autoIncrement?: boolean;
+    persist?: boolean;
 };
 
 export type Column = {
     key: string;
     unique?: boolean;
+    default?: any;
 };
 
 export type SQLFunction = "COUNT" | "AVG" | "MIN" | "MAX" | "SUM";

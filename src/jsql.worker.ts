@@ -1,43 +1,52 @@
-import type { Table, Schema, Column, Query, SQLFunction, Condition, Check } from "../jsql";
+import type {
+    Table,
+    Schema,
+    Column,
+    Query,
+    SQLFunction,
+    Condition,
+    Check,
+} from "../jsql";
 import { openDB } from "./lib/idb";
 import Fuse from "fuse.js";
 
 class JSQLWorker {
-    private db:any;
+    private db: any;
     private tables: Array<Table>;
     private defaults: {
-        [table:string]: {
-            [column:string]: any,
-        },
+        [table: string]: {
+            [column: string]: any;
+        };
     };
 
-    constructor(){
+    constructor() {
         this.db = null;
         this.tables = null;
         this.defaults = {};
         self.onmessage = this.inbox.bind(this);
     }
 
-    private async inbox(e:MessageEvent){
+    private async inbox(e: MessageEvent) {
         const { type, uid, data } = e.data;
+        const debug = data?.debug ?? false;
         try {
-            let output:any = null;
-            switch (type){
+            let output: any = null;
+            switch (type) {
                 case "init":
                     output = await this.init(data);
                     break;
                 case "query":
                     let customQuery = [];
-                    if (!Array.isArray(data)){
+                    if (!Array.isArray(data)) {
                         customQuery = [data];
                     } else {
                         customQuery = data;
                     }
-                    output = await this.performQuery(customQuery);
+                    output = await this.performQuery(customQuery, debug);
                     break;
                 case "sql":
                     const query = await this.buildQueriesFromSQL(data);
-                    output = await this.performQuery(query);
+                    output = await this.performQuery(query, debug);
                     break;
                 default:
                     console.warn(`Invalid JSQL Worker message type: ${type}`);
@@ -49,23 +58,27 @@ class JSQLWorker {
         }
     }
 
-    private send(type: string, data: any = null, uid: string = null, origin = null) {
-		const message = {
-			type: type,
-			data: data,
-			uid: uid,
-		};
-		if (origin) {
-			self.postMessage(message, origin);
-		} else {
-			// @ts-expect-error
-			self.postMessage(message);
-		}
-	}
+    private send(
+        type: string,
+        data: any = null,
+        uid: string = null,
+        origin = null
+    ) {
+        const message = {
+            type: type,
+            data: data,
+            uid: uid,
+        };
+        if (origin) {
+            self.postMessage(message, origin);
+        } else {
+            self.postMessage(message);
+        }
+    }
 
-    private async init({ schema: a, currentVersion }){
+    private async init({ schema: a, currentVersion }) {
         let schema: Schema;
-        if (typeof a === "string"){
+        if (typeof a === "string") {
             const request = await fetch(a, {
                 method: "GET",
                 headers: new Headers({
@@ -73,60 +86,70 @@ class JSQLWorker {
                 }),
                 credentials: "include",
             });
-            if (!request.ok){
+            if (!request.ok) {
                 throw `${request.status}: ${request.statusText}`;
             }
             schema = await request.json();
-        }
-        else {
+        } else {
             schema = a;
         }
         this.tables = schema.tables;
-        for (let i = 0; i < this.tables.length; i++){
+        for (let i = 0; i < this.tables.length; i++) {
             const table = this.tables[i];
             const columns = {};
-            for (let c = 0; c < table.columns.length; c++){
-                columns[table.columns[c].key] = table.columns[c]?.default ?? null;
+            for (let c = 0; c < table.columns.length; c++) {
+                columns[table.columns[c].key] =
+                    table.columns[c]?.default ?? null;
             }
             this.defaults[table.name] = columns;
         }
         const pTables = {};
-        if (currentVersion !== null && parseInt(currentVersion) !== schema.version){
-            for (let i = 0; i < this.tables.length; i++){
-                if (this.tables[i]?.persist){
+        if (
+            currentVersion !== null &&
+            parseInt(currentVersion) !== schema.version
+        ) {
+            for (let i = 0; i < this.tables.length; i++) {
+                if (this.tables[i]?.persist) {
                     pTables[this.tables[i].name] = [];
                 }
             }
-            await new Promise(resolve => {
+            await new Promise<void>((resolve) => {
                 try {
-                    const open = indexedDB.open(schema.name, parseInt(currentVersion));
+                    const open = indexedDB.open(
+                        schema.name,
+                        parseInt(currentVersion)
+                    );
                     open.onsuccess = async () => {
                         const oldDB = open.result;
-                        for (const table in pTables){
-                            pTables[table] = await new Promise(tableResolve => {
-                                const tx = oldDB.transaction(table, 'readonly').objectStore(table).getAll();
-                                tx.onsuccess = () => {
-                                    tableResolve(tx.result);
+                        for (const table in pTables) {
+                            pTables[table] = await new Promise(
+                                (tableResolve) => {
+                                    const tx = oldDB
+                                        .transaction(table, "readonly")
+                                        .objectStore(table)
+                                        .getAll();
+                                    tx.onsuccess = () => {
+                                        tableResolve(tx.result);
+                                    };
                                 }
-                            });
+                            );
                         }
                         oldDB.close();
                         resolve();
-                    }
-                }
-                catch (e) {
+                    };
+                } catch (e) {
                     console.error(e);
                     resolve();
                 }
             });
         }
-        await new Promise(resolve => {
+        await new Promise((resolve) => {
             setTimeout(resolve, 150);
         });
         // @ts-expect-error
         this.db = await openDB(schema.name, schema.version, {
             upgrade(db, oldVersion, newVersion, transaction) {
-                // Purge old stores so we don't brick the JS runtime VM when upgrading 
+                // Purge old stores so we don't brick the JS runtime VM when upgrading
                 for (const table of db.objectStoreNames) {
                     db.deleteObjectStore(table);
                 }
@@ -149,50 +172,70 @@ class JSQLWorker {
                             unique: column?.unique ?? false,
                         });
                     }
-                } 
+                }
             },
             blocked() {
-                console.error("This app needs to restart. Close all tabs for this app and before relaunching.");
+                console.error(
+                    "This app needs to restart. Close all tabs for this app and before relaunching."
+                );
             },
             blocking() {
-                console.error("This app needs to restart. Close all tabs for this app and before relaunching.");
+                console.error(
+                    "This app needs to restart. Close all tabs for this app and before relaunching."
+                );
             },
         });
         const inserts = [];
-        for (const table in pTables){
-            for (let r = 0; r < pTables[table].length; r++){
+        for (const table in pTables) {
+            for (let r = 0; r < pTables[table].length; r++) {
                 inserts.push(this.db.put(table, pTables[table][r]));
             }
-            
         }
-        await Promise.all(inserts); 
+        await Promise.all(inserts);
         return schema.version;
     }
 
-    private async performQuery(queries:Array<Query>):Promise<Array<any>>{
+    private async performQuery(
+        queries: Array<Query>,
+        debug: boolean
+    ): Promise<Array<any>> {
         let rows = [];
-        for (let i = 0; i < queries.length; i++){
+        for (let i = 0; i < queries.length; i++) {
             const query = queries[i];
-            console.log(query);
+            if (debug) {
+                console.log(query);
+            }
             let output = [];
             let skipWhere = false;
-            if (query.type !== "INSERT" && query.table !== "*"){
+            if (query.type !== "INSERT" && query.table !== "*") {
                 // Optimize IDB query when we are only looking for 1 value from 1 column
-                if (query.where !== null && query.where.length === 1 && query.where[0].checks.length === 1 && !Array.isArray(query.where[0].checks[0]) && query.where[0].checks[0].type === "=="){
+                if (
+                    query.where !== null &&
+                    query.where.length === 1 &&
+                    query.where[0].checks.length === 1 &&
+                    !Array.isArray(query.where[0].checks[0]) &&
+                    query.where[0].checks[0].type === "=="
+                ) {
                     skipWhere = true;
                     // @ts-ignore
-                    output = await this.db.getAllFromIndex(query.table, query.where[0].checks[0].column, query.where[0].checks[0].value);
+                    output = await this.db.getAllFromIndex(
+                        query.table,
+                        query.where[0].checks[0].column,
+                        query.where[0].checks[0].value
+                    );
                 } else {
                     output = await this.db.getAll(query.table);
                 }
             }
             const transactions = [];
-            switch(query.type){
+            switch (query.type) {
                 case "RESET":
-                    if (query.table === "*"){
+                    if (query.table === "*") {
                         const clearTransactions = [];
-                        for (let t = 0; t < this.tables.length; t++){
-                            clearTransactions.push(this.db.clear(this.tables[t].name));
+                        for (let t = 0; t < this.tables.length; t++) {
+                            clearTransactions.push(
+                                this.db.clear(this.tables[t].name)
+                            );
                         }
                         await Promise.all(clearTransactions);
                     } else {
@@ -200,47 +243,50 @@ class JSQLWorker {
                     }
                     break;
                 case "UPDATE":
-                    if (query.where !== null && !skipWhere){
+                    if (query.where !== null && !skipWhere) {
                         output = this.handleWhere(query, output);
                     }
-                    for (let r = 0; r < output.length; r++){
+                    for (let r = 0; r < output.length; r++) {
                         let dirty = false;
-                        for (const column in query.set){
-            			    if (column === "*"){
-    		            		output[r] = query.set[column];
-            				    dirty = true;
-			                }
-            			    else {
-                                if (column in output[r]){
+                        for (const column in query.set) {
+                            if (column === "*") {
+                                output[r] = query.set[column];
+                                dirty = true;
+                            } else {
+                                if (column in output[r]) {
                                     output[r][column] = query.set[column];
                                     dirty = true;
                                 }
-			                }
+                            }
                         }
-                        if (dirty){
-                            transactions.push(this.db.put(query.table, output[r]));
+                        if (dirty) {
+                            transactions.push(
+                                this.db.put(query.table, output[r])
+                            );
                         }
                     }
                     await Promise.all(transactions);
                     break;
                 case "DELETE":
-                    if (query.where !== null && !skipWhere){
+                    if (query.where !== null && !skipWhere) {
                         output = this.handleWhere(query, output);
                     }
                     const key = this.getTableKey(query.table);
-                    for (let r = 0; r < output.length; r++){
-                        transactions.push(this.db.delete(query.table, output[r][key]));
+                    for (let r = 0; r < output.length; r++) {
+                        transactions.push(
+                            this.db.delete(query.table, output[r][key])
+                        );
                     }
                     await Promise.all(transactions);
                     break;
                 case "SELECT":
-                    if (query.where !== null && !skipWhere){
+                    if (query.where !== null && !skipWhere) {
                         output = this.handleWhere(query, output);
                     }
                     break;
                 case "INSERT":
-                    for (const row of query.values){
-                        const a = {...this.defaults[query.table]};
+                    for (const row of query.values) {
+                        const a = { ...this.defaults[query.table] };
                         const b = Object.assign(a, row);
                         await this.db.put(query.table, b);
                     }
@@ -249,50 +295,50 @@ class JSQLWorker {
                 default:
                     break;
             }
-            if (query.type === "SELECT"){
-                if (query.function !== null){
+            if (query.type === "SELECT") {
+                if (query.function !== null) {
                     output = this.handleSelectFunction(query, output);
                 } else {
-                    if (query.uniqueOnly){
+                    if (query.uniqueOnly) {
                         output = this.getUnique(output, query.columns);
                     }
-                    if (query.columns.length && query.columns[0] !== "*"){
+                    if (query.columns.length && query.columns[0] !== "*") {
                         output = this.filterColumns(query, output);
                     }
-                    if (query.order !== null){
+                    if (query.order !== null) {
                         this.sort(query, output);
                     }
-                    if (query.limit !== null){
+                    if (query.limit !== null) {
                         output = output.splice(query.offset, query.limit);
                     }
                 }
             }
-            if (query.uniqueOnly){
+            if (query.uniqueOnly) {
                 const temp = [];
-                for (let i = 0; i < output.length; i++){
+                for (let i = 0; i < output.length; i++) {
                     temp.push(output[i][query.columns[0]]);
                 }
                 output = temp;
-            } else if (query.group !== null){
+            } else if (query.group !== null) {
                 // @ts-ignore
                 output = this.buildGroups(output, query.group);
             }
-            if (Array.isArray(output)){
+            if (Array.isArray(output)) {
                 rows = [...rows, ...output];
             } else {
                 rows.push(output);
             }
         }
-        if (queries.length === 1 && queries[0].group !== null){
+        if (queries.length === 1 && queries[0].group !== null) {
             rows = rows[0];
         }
         return rows;
     }
 
-    private buildGroups(rows:Array<any>, column:string){
+    private buildGroups(rows: Array<any>, column: string) {
         const groups = {};
-        for (let r = 0; r < rows.length; r++){
-            if (rows[r][column] in groups){
+        for (let r = 0; r < rows.length; r++) {
+            if (rows[r][column] in groups) {
                 groups[rows[r][column]].push(rows[r]);
             } else {
                 groups[rows[r][column]] = [rows[r]];
@@ -301,11 +347,11 @@ class JSQLWorker {
         return groups;
     }
 
-    private getUnique(rows:Array<any>, columns:Array<string>){
+    private getUnique(rows: Array<any>, columns: Array<string>) {
         let output = [];
         const claimedValues = [];
-        for (let r = 0; r < rows.length; r++){
-            if (!claimedValues.includes(rows[r][columns[0]])){
+        for (let r = 0; r < rows.length; r++) {
+            if (!claimedValues.includes(rows[r][columns[0]])) {
                 claimedValues.push(rows[r][columns[0]]);
                 output.push(rows[r]);
             }
@@ -314,21 +360,21 @@ class JSQLWorker {
     }
 
     private getTableKey(table: string) {
-		let key = "id";
-		for (let i = 0; i < this.tables.length; i++) {
-			if (this.tables[i].name === table) {
-				if (this.tables[i]?.keyPath) {
-					key = this.tables[i].keyPath;
-				}
-				break;
-			}
-		}
-		return key;
-	}
+        let key = "id";
+        for (let i = 0; i < this.tables.length; i++) {
+            if (this.tables[i].name === table) {
+                if (this.tables[i]?.keyPath) {
+                    key = this.tables[i].keyPath;
+                }
+                break;
+            }
+        }
+        return key;
+    }
 
-    private check(check:Check, row:any):boolean{
+    private check(check: Check, row: any): boolean {
         let didPassCheck = false;
-        switch (check.type){
+        switch (check.type) {
             case "LIKE":
                 const fuse = new Fuse([row], {
                     keys: [check.column],
@@ -336,77 +382,83 @@ class JSQLWorker {
                     threshold: 0.0,
                 });
                 const results = fuse.search(check.value);
-                if (results.length){
+                if (results.length) {
                     didPassCheck = true;
                 }
                 break;
             case "INCLUDES":
-                if (Array.isArray(row[check.column]) && row[check.column].includes(check.value)){
+                if (
+                    Array.isArray(row[check.column]) &&
+                    row[check.column].includes(check.value)
+                ) {
                     didPassCheck = true;
                 }
                 break;
             case "EXCLUDES":
-                if (Array.isArray(row[check.column]) && !row[check.column].includes(check.value)){
+                if (
+                    Array.isArray(row[check.column]) &&
+                    !row[check.column].includes(check.value)
+                ) {
                     didPassCheck = true;
                 }
                 break;
             case ">=":
-                if (row[check.column] >= check.value){
+                if (row[check.column] >= check.value) {
                     didPassCheck = true;
                 }
                 break;
             case ">":
-                if (row[check.column] > check.value){
+                if (row[check.column] > check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "<=":
-                if (row[check.column] <= check.value){
+                if (row[check.column] <= check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "<":
-                if (row[check.column] < check.value){
+                if (row[check.column] < check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "!>=":
-                if (row[check.column] < check.value){
+                if (row[check.column] < check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "!>":
-                if (row[check.column] <= check.value){
+                if (row[check.column] <= check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "!==":
-                if (row[check.column] !== check.value){
+                if (row[check.column] !== check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "!=":
-                if (row[check.column] != check.value){
+                if (row[check.column] != check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "!<=":
-                if (row[check.column] > check.value){
+                if (row[check.column] > check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "!<":
-                if (row[check.column] >= check.value){
+                if (row[check.column] >= check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "==":
-                if (row[check.column] === check.value){
+                if (row[check.column] === check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "=":
-                if (row[check.column] == check.value){
+                if (row[check.column] == check.value) {
                     didPassCheck = true;
                 }
                 break;
@@ -416,61 +468,61 @@ class JSQLWorker {
         return didPassCheck;
     }
 
-    private handleWhere(query:Query, rows:Array<any>):Array<any>{
+    private handleWhere(query: Query, rows: Array<any>): Array<any> {
         let output = [];
-        for (let r = 0; r < rows.length; r++){
+        for (let r = 0; r < rows.length; r++) {
             const row = rows[r];
             let hasOneValidCondition = false;
-            for (let c = 0; c < query.where.length; c++){
-                const condition:Condition = query.where[c];
+            for (let c = 0; c < query.where.length; c++) {
+                const condition: Condition = query.where[c];
                 let passes = 0;
                 let passesRequired = condition.checks.length;
-                for (let k = 0; k < condition.checks.length; k++){
+                for (let k = 0; k < condition.checks.length; k++) {
                     const check = condition.checks[k];
-                    if (Array.isArray(check)){
+                    if (Array.isArray(check)) {
                         let subpasses = 0;
                         let subpassesRequired = check.length;
-                        for (let j = 0; j < check.length; j++){
-                            if (this.check(check[j], row)){
+                        for (let j = 0; j < check.length; j++) {
+                            if (this.check(check[j], row)) {
                                 subpasses++;
                             }
                         }
-                        if (subpasses === subpassesRequired){
+                        if (subpasses === subpassesRequired) {
                             passes++;
                         }
                     } else {
-                        if (this.check(check, row)){
+                        if (this.check(check, row)) {
                             passes++;
                         }
                     }
-                    if (passes !== 0 && !condition.requireAll){
+                    if (passes !== 0 && !condition.requireAll) {
                         hasOneValidCondition = true;
                         break;
                     }
                 }
-                if (hasOneValidCondition || passes === passesRequired){
+                if (hasOneValidCondition || passes === passesRequired) {
                     hasOneValidCondition = true;
                     break;
                 }
             }
-            if (hasOneValidCondition){
+            if (hasOneValidCondition) {
                 output.push(row);
             }
         }
         return output;
     }
 
-    private handleSelectFunction(query:Query, rows:Array<any>){
+    private handleSelectFunction(query: Query, rows: Array<any>) {
         let output;
-        switch(query.function){
+        switch (query.function) {
             case "MIN":
                 let min;
-                for (let i = 0; i < rows.length; i++){
+                for (let i = 0; i < rows.length; i++) {
                     let value = rows[i]?.[query.columns[0]] ?? 0;
-                    if (i === 0){
+                    if (i === 0) {
                         min = value;
                     } else {
-                        if (value < min){
+                        if (value < min) {
                             min = value;
                         }
                     }
@@ -479,12 +531,12 @@ class JSQLWorker {
                 break;
             case "MAX":
                 let max;
-                for (let i = 0; i < rows.length; i++){
+                for (let i = 0; i < rows.length; i++) {
                     let value = rows[i]?.[query.columns[0]] ?? 0;
-                    if (i === 0){
+                    if (i === 0) {
                         max = value;
                     } else {
-                        if (value > max){
+                        if (value > max) {
                             max = value;
                         }
                     }
@@ -493,9 +545,9 @@ class JSQLWorker {
                 break;
             case "SUM":
                 output = 0;
-                for (let i = 0; i < rows.length; i++){
+                for (let i = 0; i < rows.length; i++) {
                     let value = rows[i]?.[query.columns[0]] ?? 0;
-                    if (isNaN(value) || !isFinite(value)){
+                    if (isNaN(value) || !isFinite(value)) {
                         value = 0;
                     }
                     output += value;
@@ -503,9 +555,9 @@ class JSQLWorker {
                 break;
             case "AVG":
                 let total = 0;
-                for (let i = 0; i < rows.length; i++){
+                for (let i = 0; i < rows.length; i++) {
                     let value = rows[i]?.[query.columns[0]] ?? 0;
-                    if (isNaN(value) || !isFinite(value)){
+                    if (isNaN(value) || !isFinite(value)) {
                         value = 0;
                     }
                     total += value;
@@ -521,8 +573,8 @@ class JSQLWorker {
         return output;
     }
 
-    private sort(query:Query, rows:Array<any>){
-        if (query.order.by === "ASC"){
+    private sort(query: Query, rows: Array<any>) {
+        if (query.order.by === "ASC") {
             rows.sort((a, b) => {
                 const valueA = a?.[query.order.column] ?? 0;
                 const valueB = b?.[query.order.column] ?? 0;
@@ -537,12 +589,12 @@ class JSQLWorker {
         }
     }
 
-    private filterColumns(query:Query, rows:Array<any>):Array<any>{
+    private filterColumns(query: Query, rows: Array<any>): Array<any> {
         let modifiedRows = [];
-        for (let j = 0; j < rows.length; j++){
+        for (let j = 0; j < rows.length; j++) {
             const row = rows[j];
             const temp = {};
-            for (let i = 0; i < query.columns.length; i++){
+            for (let i = 0; i < query.columns.length; i++) {
                 temp[query.columns[i]] = row?.[query.columns[i]] ?? null;
             }
             modifiedRows.push(temp);
@@ -550,9 +602,9 @@ class JSQLWorker {
         return modifiedRows;
     }
 
-    private buildQueryFromStatement(sql, params = {}):Query{
-        const segments:Array<Array<string>> = this.parseSegments(sql);
-        let query:Query = {
+    private buildQueryFromStatement(sql, params = {}): Query {
+        const segments: Array<Array<string>> = this.parseSegments(sql);
+        let query: Query = {
             uniqueOnly: false,
             type: null,
             function: null,
@@ -566,44 +618,64 @@ class JSQLWorker {
             set: null,
             group: null,
         };
-        for (let i = segments.length - 1; i >= 0; i--){
+        for (let i = segments.length - 1; i >= 0; i--) {
             const segment = segments[i].join(" ");
-            if (segment.indexOf("+") !== -1 || segment.indexOf("/") !== -1 || segment.indexOf("%") !== -1){
+            if (
+                segment.indexOf("+") !== -1 ||
+                segment.indexOf("/") !== -1 ||
+                segment.indexOf("%") !== -1
+            ) {
                 throw `Invalid syntax. Arithmetic operators are not currently supported ${segment}`;
-            } else if (segment.indexOf("&") !== -1 || segment.indexOf("|") !== -1 || segment.indexOf("^") !== -1){
+            } else if (
+                segment.indexOf("&") !== -1 ||
+                segment.indexOf("|") !== -1 ||
+                segment.indexOf("^") !== -1
+            ) {
                 throw `Invalid syntax. Bitwise operators are not currently supported`;
             }
-            switch(segments[i][0].toUpperCase()){
+            switch (segments[i][0].toUpperCase()) {
                 case "SET":
-                    query = this.parseSetSegment(segments[i], query, params)
+                    query = this.parseSetSegment(segments[i], query, params);
                     break;
                 case "VALUES":
                     query = this.parseValues(segments[i], query, params);
                     break;
                 case "OFFSET":
-                    if (segments[i].length !== 2){
-                        throw `Invalid syntax at: ${segments[i].join(" ")}`
+                    if (segments[i].length !== 2) {
+                        throw `Invalid syntax at: ${segments[i].join(" ")}`;
                     }
-                    query.offset = parseInt(this.injectParameter(segments[i][1], params));
+                    query.offset = parseInt(
+                        this.injectParameter(segments[i][1], params)
+                    );
                     break;
                 case "LIMIT":
-                    if (segments[i].length !== 2){
-                        throw `Invalid syntax at: ${segments[i].join(" ")}`
+                    if (segments[i].length !== 2) {
+                        throw `Invalid syntax at: ${segments[i].join(" ")}`;
                     }
-                    query.limit = parseInt(this.injectParameter(segments[i][1], params));
+                    query.limit = parseInt(
+                        this.injectParameter(segments[i][1], params)
+                    );
                     break;
                 case "GROUP":
-                    query = this.parseGroupBySegment(segments[i], query, params);
+                    query = this.parseGroupBySegment(
+                        segments[i],
+                        query,
+                        params
+                    );
                     break;
                 case "ORDER":
-                    query = this.parseOrderBySegment(segments[i], query, params);
+                    query = this.parseOrderBySegment(
+                        segments[i],
+                        query,
+                        params
+                    );
                     break;
                 case "WHERE":
                     query = this.parseWhereSegment(segments[i], query, params);
                     break;
                 case "FROM":
-                    if (segments[i].length !== 2){
-                        throw `Invalid syntax at: ${segments[i].join(" ")}`
+                    if (segments[i].length !== 2) {
+                        throw `Invalid syntax at: ${segments[i].join(" ")}`;
                     }
                     query.table = this.injectParameter(segments[i][1], params);
                     break;
@@ -619,15 +691,15 @@ class JSQLWorker {
                     query = this.parseInsertSegment(segments[i], query, params);
                     break;
                 case "UPDATE":
-                    if (segments[i].length !== 2){
-                        throw `Invalid syntax at: ${segments[i].join(" ")}`
+                    if (segments[i].length !== 2) {
+                        throw `Invalid syntax at: ${segments[i].join(" ")}`;
                     }
                     query.table = this.injectParameter(segments[i][1], params);
                     query.type = "UPDATE";
                     break;
                 case "RESET":
-                    if (segments[i].length !== 2){
-                        throw `Invalid syntax at: ${segments[i].join(" ")}`
+                    if (segments[i].length !== 2) {
+                        throw `Invalid syntax at: ${segments[i].join(" ")}`;
                     }
                     query.table = this.injectParameter(segments[i][1], params);
                     query.type = "RESET";
@@ -636,107 +708,106 @@ class JSQLWorker {
                     throw `Invalid syntax at: ${segments[i].join(" ")}`;
             }
         }
-        if (query.type === null)
-        {
+        if (query.type === null) {
             throw `Invalid syntax: Missing SELECT, UPDATE, INSERT INTO, or DELETE statement.`;
-        }
-        else if (query.table === null)
-        {
+        } else if (query.table === null) {
             throw `Invalid syntax: Missing FROM.`;
-        }
-        else if (query.type === "SELECT" && query.columns === null)
-        {
+        } else if (query.type === "SELECT" && query.columns === null) {
             throw `Invalid syntax: Missing columns.`;
-        }
-        else if (query.type === "INSERT" && query.values === null)
-        {
+        } else if (query.type === "INSERT" && query.values === null) {
             throw `Invalid syntax: Missing VALUES.`;
-        }
-        else if (query.type === "UPDATE" && query.set === null)
-        {
+        } else if (query.type === "UPDATE" && query.set === null) {
             throw `Invalid syntax: Missing SET.`;
-        }
-        else if (query.type === "UPDATE" && query.where === null)
-        {
+        } else if (query.type === "UPDATE" && query.where === null) {
             throw `Invalid syntax: Missing WHERE.`;
-        }
-        else if (isNaN(query.limit))
-        {
+        } else if (isNaN(query.limit)) {
             throw `Invalid syntax: LIMIT is not a number.`;
-        }
-        else if (isNaN(query.offset))
-        {
+        } else if (isNaN(query.offset)) {
             throw `Invalid syntax: OFFSET is not a number.`;
         }
         query.table = this.injectParameter(query.table, params);
         return query;
     }
 
-    private async buildQueriesFromSQL({ sql, params }):Promise<Array<Query>>{
+    private async buildQueriesFromSQL({ sql, params }): Promise<Array<Query>> {
         sql = sql.replace(/\-\-.*|\;$/g, "").trim();
-        const queries:Array<Query> = [];
+        const queries: Array<Query> = [];
         const statements = sql.split(/\bUNION\b/i);
-        for (let i = 0; i < statements.length; i++){
+        for (let i = 0; i < statements.length; i++) {
             queries.push(this.buildQueryFromStatement(statements[i], params));
         }
         return queries;
     }
 
-    private parseSetSegment(segments:Array<string>, query:Query, params:any):Query{
+    private parseSetSegment(
+        segments: Array<string>,
+        query: Query,
+        params: any
+    ): Query {
         const columns = {};
-        if (segments.length < 2)
-        {
-            throw `Invalid syntax at: ${segments.join(" ")}.`
-        }
-        else
-        {
+        if (segments.length < 2) {
+            throw `Invalid syntax at: ${segments.join(" ")}.`;
+        } else {
             query.set = {};
             segments.splice(0, 1);
             const groups = segments.join(" ").trim().split(",");
-            for (let i = 0; i < groups.length; i++){
+            for (let i = 0; i < groups.length; i++) {
                 const values = groups[i].trim().split("=");
-                if (values.length === 2){
-                    columns[values[0].trim()] = values[1].trim().replace(/^[\"\']|[\"\']$/g, "");
-                }
-                else if (values.length === 1) {
-                    columns["*"] = values[0].trim().replace(/^[\"\']|[\"\']$/g, "");
-                }
-                else {
-                    throw `Invalid syntax at: SET ${values.join(" ")}`;	
+                if (values.length === 2) {
+                    columns[values[0].trim()] = values[1]
+                        .trim()
+                        .replace(/^[\"\']|[\"\']$/g, "");
+                } else if (values.length === 1) {
+                    columns["*"] = values[0]
+                        .trim()
+                        .replace(/^[\"\']|[\"\']$/g, "");
+                } else {
+                    throw `Invalid syntax at: SET ${values.join(" ")}`;
                 }
             }
         }
-        for (const column in columns){
-            query.set[this.injectParameter(column, params)] = this.injectParameter(columns[column], params);
+        for (const column in columns) {
+            query.set[this.injectParameter(column, params)] =
+                this.injectParameter(columns[column], params);
         }
         return query;
     }
 
-    private buildConditionCheck(statement):Check|Array<Check>{
+    private buildConditionCheck(statement): Check | Array<Check> {
         let result;
-        if (Array.isArray(statement)){
+        if (Array.isArray(statement)) {
             result = [];
-            for (let i = 0; i < statement.length; i++){
-                const check:Check = {
+            for (let i = 0; i < statement.length; i++) {
+                const check: Check = {
                     column: "",
                     type: "=",
                     value: null,
                 };
                 statement[i] = statement[i].trim().replace(/\'|\"/g, "");
-                check.type = statement[i].match(/\=|\=\=|\!\=|\!\=\=|\>|\<|\>\=|\<\=|\!\>\=|\!\<\=|\!\>|\!\<|\bLIKE\b|\bINCLUDES\b|\bEXCLUDES\b/ig).join("").trim();
+                check.type = statement[i]
+                    .match(
+                        /\=|\=\=|\!\=|\!\=\=|\>|\<|\>\=|\<\=|\!\>\=|\!\<\=|\!\>|\!\<|\bLIKE\b|\bINCLUDES\b|\bEXCLUDES\b/gi
+                    )
+                    .join("")
+                    .trim();
                 const values = statement[i].split(check.type);
                 check.column = values[0];
                 check.value = values[1];
                 result.push(check);
             }
         } else {
-            const check:Check = {
+            const check: Check = {
                 column: "",
                 type: "=",
                 value: null,
             };
             statement = statement.trim().replace(/\'|\"/g, "");
-            check.type = statement.match(/\=|\=\=|\!\=|\!\=\=|\>|\<|\>\=|\<\=|\!\>\=|\!\<\=|\!\>|\!\<|\bLIKE\b|\bINCLUDES\b|\bEXCLUDES\b/ig).join("").trim();
+            check.type = statement
+                .match(
+                    /\=|\=\=|\!\=|\!\=\=|\>|\<|\>\=|\<\=|\!\>\=|\!\<\=|\!\>|\!\<|\bLIKE\b|\bINCLUDES\b|\bEXCLUDES\b/gi
+                )
+                .join("")
+                .trim();
             const values = statement.split(check.type);
             check.column = values[0].trim();
             check.value = values[1].trim();
@@ -748,95 +819,113 @@ class JSQLWorker {
     /**
      * Build an array of Check objects.
      */
-    private buildConditions(statement:string):Condition{
-        const condition:Condition = {
+    private buildConditions(statement: string): Condition {
+        const condition: Condition = {
             requireAll: true,
-            checks: []
+            checks: [],
         };
         let statements = [];
-        if (statement.search(/\bOR\b/i) !== -1){
+        if (statement.search(/\bOR\b/i) !== -1) {
             condition.requireAll = false;
             statements = statement.split(/\bOR\b/i);
-            for (let i = 0; i < statements.length; i++){
-                if (statements[i].search(/\bAND\b/i) !== -1){
+            for (let i = 0; i < statements.length; i++) {
+                if (statements[i].search(/\bAND\b/i) !== -1) {
                     statements.splice(i, 1, statements[i].split(/\bAND\b/i));
                 }
             }
         } else {
             statements = statement.split(/\bAND\b/i);
         }
-        for (let i = 0; i < statements.length; i++){
+        for (let i = 0; i < statements.length; i++) {
             condition.checks.push(this.buildConditionCheck(statements[i]));
         }
         return condition;
     }
 
-    private parseWhereSegment(segments:Array<string>, query:Query, params:any):Query{
-        if (segments.length < 2)
-        {
-            throw `Invalid syntax at: ${segments.join(" ")}.`
-        }
-        else
-        {
+    private parseWhereSegment(
+        segments: Array<string>,
+        query: Query,
+        params: any
+    ): Query {
+        if (segments.length < 2) {
+            throw `Invalid syntax at: ${segments.join(" ")}.`;
+        } else {
             query.where = [];
             segments.splice(0, 1);
             const groups = [];
             let openParentheses = 0;
-            for (let i = segments.length - 1; i >= 0; i--){
+            for (let i = segments.length - 1; i >= 0; i--) {
                 let index = -1;
                 openParentheses += (segments[i].match(/\)/g) || []).length;
                 openParentheses -= (segments[i].match(/\(/g) || []).length;
-                switch (segments[i].toUpperCase()){
+                switch (segments[i].toUpperCase()) {
                     case "OR":
-                        if (openParentheses === 0){
+                        if (openParentheses === 0) {
                             index = i;
                         }
                         break;
                     default:
                         break;
                 }
-                if (index !== -1){
+                if (index !== -1) {
                     groups.push(segments.splice(index, segments.length));
-                } else if (i === 0){
+                } else if (i === 0) {
                     groups.push(segments.splice(0, segments.length));
                 }
             }
 
             groups.reverse();
 
-            for (let i = 0; i < groups.length; i++){
-                if (groups[i][0].toUpperCase() === "OR"){
+            for (let i = 0; i < groups.length; i++) {
+                if (groups[i][0].toUpperCase() === "OR") {
                     groups[i].splice(0, 1);
                 }
             }
 
-            for (let i = 0; i < groups.length; i++){
+            for (let i = 0; i < groups.length; i++) {
                 let statement = groups[i].join(" ");
-                statement = statement.trim().replace(/^\(|\)$/g, "").trim();
+                statement = statement
+                    .trim()
+                    .replace(/^\(|\)$/g, "")
+                    .trim();
                 groups.splice(i, 1, statement);
             }
 
             const conditions = [];
-            for (let i = 0; i < groups.length; i++){
+            for (let i = 0; i < groups.length; i++) {
                 const condition = this.buildConditions(groups[i]);
                 conditions.push(condition);
             }
 
             query.where = conditions;
 
-            for (let i = 0; i < query.where.length; i++){
-                for (let k = 0; k < query.where[i].checks.length; k++){
-                    if (Array.isArray(query.where[i].checks[k])){
-                        // @ts-ignore
-                        for (let c = 0; c < query.where[i].checks[k].length; c++){
+            for (let i = 0; i < query.where.length; i++) {
+                for (let k = 0; k < query.where[i].checks.length; k++) {
+                    if (Array.isArray(query.where[i].checks[k])) {
+                        for (
+                            let c = 0;
+                            // @ts-ignore
+                            c < query.where[i].checks[k].length;
+                            c++
+                        ) {
                             const check = query.where[i].checks[k][c] as Check;
-                            query.where[i].checks[k][c].value = this.injectParameter(check.value, params);
-                            query.where[i].checks[k][c].column = this.injectParameter(check.column, params);
+                            query.where[i].checks[k][c].value =
+                                this.injectParameter(check.value, params);
+                            query.where[i].checks[k][c].column =
+                                this.injectParameter(check.column, params);
                         }
                     } else {
                         const check = query.where[i].checks[k] as Check;
-                        query.where[i].checks[k].value = this.injectParameter(check.value, params);
-                        query.where[i].checks[k].column = this.injectParameter(check.column, params);
+                        // @ts-ignore
+                        query.where[i].checks[k].value = this.injectParameter(
+                            check.value,
+                            params
+                        );
+                        // @ts-ignore
+                        query.where[i].checks[k].column = this.injectParameter(
+                            check.column,
+                            params
+                        );
                     }
                 }
             }
@@ -844,77 +933,84 @@ class JSQLWorker {
         }
     }
 
-    private parseGroupBySegment(segments:Array<string>, query:Query):Query{
-        if (segments.length !== 3){
+    private parseGroupBySegment(
+        segments: Array<string>,
+        query: Query,
+        params
+    ): Query {
+        if (segments.length !== 3) {
             throw `Invalid syntax. GROUP BY only currently supports single column sorting.`;
         }
-        if (query.uniqueOnly){
-            throw `Invalid syntax. GROUP BY can not be used with UNIQUE or DISTINCT statements.`
+        if (query.uniqueOnly) {
+            throw `Invalid syntax. GROUP BY can not be used with UNIQUE or DISTINCT statements.`;
         }
         query.group = this.injectParameter(segments[2], params);
         return query;
     }
 
-    private parseOrderBySegment(segments:Array<string>, query:Query, params):Query{
-        if (segments.length < 3 || segments[1] !== "BY")
-        {
-            throw `Invalid syntax at: ${segments.join(" ")}.`
-        }
-        else
-        {
+    private parseOrderBySegment(
+        segments: Array<string>,
+        query: Query,
+        params
+    ): Query {
+        if (segments.length < 3 || segments[1] !== "BY") {
+            throw `Invalid syntax at: ${segments.join(" ")}.`;
+        } else {
             segments.splice(0, 2);
-            if (segments.length > 2 || segments[0].indexOf(",") !== -1)
-            {
-                throw `Invalid syntax. ORDER BY only currently supports single column sorting.`
-            }
-            else
-            {
+            if (segments.length > 2 || segments[0].indexOf(",") !== -1) {
+                throw `Invalid syntax. ORDER BY only currently supports single column sorting.`;
+            } else {
                 let sort = "ASC";
-                if (segments?.[1]){
+                if (segments?.[1]) {
                     sort = segments[1].toUpperCase();
-                    if (sort !== "ASC" && sort !== "DESC"){
-                        throw `Invalid syntax. ORDER BY only currently supports ASC or DESC sorting.`
+                    if (sort !== "ASC" && sort !== "DESC") {
+                        throw `Invalid syntax. ORDER BY only currently supports ASC or DESC sorting.`;
                     }
                 }
                 query.order = {
                     column: this.injectParameter(segments[0], params),
                     // @ts-ignore
                     by: sort,
-                }
+                };
             }
         }
         return query;
     }
 
-    private parseValues(segments:Array<string>, query:Query, params:any):Query{
-        if (segments.length === 1)
-        {
-            throw `Invalid syntax at: ${segments}.`
-        }
-        else
-        {
+    private parseValues(
+        segments: Array<string>,
+        query: Query,
+        params: any
+    ): Query {
+        if (segments.length === 1) {
+            throw `Invalid syntax at: ${segments}.`;
+        } else {
             query.values = [];
             segments.splice(0, 1);
             const objects = segments.join("").match(/(?<=\().*?(?=\))/g) || [];
-            for (let i = 0; i < objects.length; i++){
+            for (let i = 0; i < objects.length; i++) {
                 const values = objects[i].split(",");
-                let obj = {...this.defaults[query.table]};
-                if (values.length === 1 && values[0].trim().indexOf("$") === 0){
-                    obj = Object.assign(obj, this.injectParameter(values[i], params));
+                let obj = { ...this.defaults[query.table] };
+                if (
+                    values.length === 1 &&
+                    values[0].trim().indexOf("$") === 0
+                ) {
+                    obj = Object.assign(
+                        obj,
+                        this.injectParameter(values[i], params)
+                    );
                     query.values.push(obj);
-                }
-                else if (values.length >= 1) {
+                } else if (values.length >= 1) {
                     let v = 0;
-                    for (const col in obj){
-                        if (v >= values.length){
+                    for (const col in obj) {
+                        if (v >= values.length) {
                             break;
                         }
                         obj[col] = this.injectParameter(values[v], params);
                         v++;
                     }
                     query.values.push(obj);
-                }
-                else {
+                } else {
                     throw `Invalid syntax. VALUE error at ${objects[i]}`;
                 }
             }
@@ -923,75 +1019,83 @@ class JSQLWorker {
         return query;
     }
 
-    private injectParameter(value:string, params:object){
-        if (value.toString().indexOf("$") === 0){
+    private injectParameter(value: string, params: object) {
+        if (value.toString().indexOf("$") === 0) {
             const key = value.substring(1, value.length);
-            if (key in params){
+            if (key in params) {
                 return params[key];
             } else {
                 throw `Invalid params. Missing key: ${key}`;
             }
-        }
-        else if (typeof value === "string"){
+        } else if (typeof value === "string") {
             value = value.replace(/\[|\]/g, "").trim();
         }
         return value;
     }
 
-    private parseInsertSegment(segments:Array<string>, query:Query, params):Query{
-        if (segments.length < 3 || segments[1] !== "INTO")
-        {
-            throw `Invalid syntax at: ${segments.join(" ")}.`
-        }
-        else if (segments.length === 3)
-        {
+    private parseInsertSegment(
+        segments: Array<string>,
+        query: Query,
+        params
+    ): Query {
+        if (segments.length < 3 || segments[1] !== "INTO") {
+            throw `Invalid syntax at: ${segments.join(" ")}.`;
+        } else if (segments.length === 3) {
             query.table = this.injectParameter(segments[2], params);
-        }
-        else
-        {
-            throw `Invalid syntax. Only 'INSERT INTO table_name' queries are currently supported.`
+        } else {
+            throw `Invalid syntax. Only 'INSERT INTO table_name' queries are currently supported.`;
         }
         return query;
     }
 
-    private parseSelectSegment(segments:Array<string>, query:Query, params):Query{
-        if (segments.includes("*"))
-        {
+    private parseSelectSegment(
+        segments: Array<string>,
+        query: Query,
+        params
+    ): Query {
+        if (segments.includes("*")) {
             query.columns = ["*"];
         }
-        if (segments[1].toUpperCase() === "DISTINCT" || segments[1].toUpperCase() === "UNIQUE")
-        {
-            if (segments.includes("*")){
+        if (
+            segments[1].toUpperCase() === "DISTINCT" ||
+            segments[1].toUpperCase() === "UNIQUE"
+        ) {
+            if (segments.includes("*")) {
                 throw `Invalid SELECT statement. DISTINCT or UNIQUE does not currently support the wildcard (*) character.`;
             }
             query.uniqueOnly = true;
             segments.splice(1, 1);
-            if (segments.length > 2){
-                throw `Invalid SELECT statement. DISTINCT or UNIQUE does not currently support multiple columns.`
+            if (segments.length > 2) {
+                throw `Invalid SELECT statement. DISTINCT or UNIQUE does not currently support multiple columns.`;
             }
-        }
-        else if (segments[1].toUpperCase().search(/\bCOUNT\b/i) === 0 || segments[1].toUpperCase().search(/\bMIN\b/i) === 0 || segments[1].toUpperCase().search(/\bMAX\b/i) === 0 || segments[1].toUpperCase().search(/\bAVG\b/i) === 0 || segments[1].toUpperCase().search(/\bSUM\b/i) === 0)
-        {
-            if (segments.includes("*")){
+        } else if (
+            segments[1].toUpperCase().search(/\bCOUNT\b/i) === 0 ||
+            segments[1].toUpperCase().search(/\bMIN\b/i) === 0 ||
+            segments[1].toUpperCase().search(/\bMAX\b/i) === 0 ||
+            segments[1].toUpperCase().search(/\bAVG\b/i) === 0 ||
+            segments[1].toUpperCase().search(/\bSUM\b/i) === 0
+        ) {
+            if (segments.includes("*")) {
                 throw `Invalid SELECT statement. Functions can not be used with the wildcard (*) character.`;
             }
             const type = segments[1].match(/\w+/)[0].trim().toUpperCase();
-            const column = segments[1].match(/\(.*?\)/)[0].replace(/\(|\)/g, "").trim();
+            const column = segments[1]
+                .match(/\(.*?\)/)[0]
+                .replace(/\(|\)/g, "")
+                .trim();
             query.function = type as SQLFunction;
             query.columns = [this.injectParameter(column, params)];
         }
-        if (query.columns === null){
-            if (segments.length === 1)
-            {
+        if (query.columns === null) {
+            if (segments.length === 1) {
                 throw `Invalid SELECT statement syntax.`;
             }
             query.columns = [];
-            for (let i = 1; i < segments.length; i++)
-            {
+            for (let i = 1; i < segments.length; i++) {
                 const cols = segments[i].split(",");
-                for (let j = 0; j < cols.length; j++){
+                for (let j = 0; j < cols.length; j++) {
                     const col = cols[j].trim();
-                    if (col.length){
+                    if (col.length) {
                         query.columns.push(this.injectParameter(col, params));
                     }
                 }
@@ -1000,19 +1104,19 @@ class JSQLWorker {
         return query;
     }
 
-    private parseSegments(sql){
-        let textNodes:Array<string> = sql.trim().split(/\s+/);
+    private parseSegments(sql) {
+        let textNodes: Array<string> = sql.trim().split(/\s+/);
         const segments = [];
-        while(textNodes.length > 0){
+        while (textNodes.length > 0) {
             let index = -1;
-            for (let i = textNodes.length - 1; i >= 0; i--){
-                switch(textNodes[i].toUpperCase()){
+            for (let i = textNodes.length - 1; i >= 0; i--) {
+                switch (textNodes[i].toUpperCase()) {
                     case "HAVING":
-                        throw `Invalid syntax: HAVING clause is not currently supported.`
+                        throw `Invalid syntax: HAVING clause is not currently supported.`;
                     case "UNION":
-                        throw `Invalid syntax: UNION operator is not currently supported.`
+                        throw `Invalid syntax: UNION operator is not currently supported.`;
                     case "JOIN":
-                        throw `Invalid syntax: JOIN clause is not currently supported.`
+                        throw `Invalid syntax: JOIN clause is not currently supported.`;
                     case "SET":
                         index = i;
                         break;
@@ -1055,11 +1159,11 @@ class JSQLWorker {
                     default:
                         break;
                 }
-                if (index !== -1){
+                if (index !== -1) {
                     break;
                 }
             }
-            if (index === -1 && textNodes.length > 0){
+            if (index === -1 && textNodes.length > 0) {
                 throw `Invalid syntax: ${sql}`;
             } else {
                 segments.push(textNodes.splice(index, textNodes.length));
