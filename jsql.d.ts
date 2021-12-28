@@ -1,63 +1,84 @@
 export type Schema = {
-    name: string,
-	version: number,
-	tables: Array<Table>,
+    name: string;
+    version: number;
+    tables: Array<Table>;
 };
 
 export type Table = {
-	name: string,
-	columns: Array<Column>,
-	keyPath?: string,
-	autoIncrement?: boolean,
+    name: string;
+    columns: Array<Column>;
+    keyPath?: string;
+    autoIncrement?: boolean;
 };
 
 export type Column = {
-	key: string,
-	unique?: boolean,
+    key: string;
+    unique?: boolean;
 };
 
 export type SQLFunction = "COUNT" | "AVG" | "MIN" | "MAX" | "SUM";
 export type SQLStatement = "SELECT" | "UPDATE" | "DELETE" | "INSERT" | "RESET";
-export type CheckOperation = "=" | "==" | "!=" | "!==" | ">" | "<" | ">=" | "<=" | "!>=" | "!<=" | "!>" | "!<" | "LIKE" | "INCLUDES" | "EXCLUDES";
+export type CheckOperation =
+    | "="
+    | "=="
+    | "!="
+    | "!=="
+    | ">"
+    | "<"
+    | ">="
+    | "<="
+    | "!>="
+    | "!<="
+    | "!>"
+    | "!<"
+    | "LIKE"
+    | "INCLUDES"
+    | "EXCLUDES";
 
 export type Check = {
-    type: CheckOperation, 
+    type: CheckOperation;
     column: string;
     value: any;
 };
 export type Condition = {
-    requireAll: boolean,
-    checks: Array<Check|Array<Check>>,
+    requireAll: boolean;
+    checks: Array<Check | Array<Check>>;
 };
 
 export type Query = {
-    uniqueOnly: boolean,
-    type: SQLStatement,
-    function: SQLFunction,
-    table: string,
-    columns: Array<string>,
-    where: Array<Condition>,
-    limit: number,
-    offset: number,
+    uniqueOnly: boolean;
+    type: SQLStatement;
+    function: SQLFunction;
+    table: string;
+    columns: Array<string>;
+    where: Array<Condition>;
+    limit: number;
+    offset: number;
     order: {
-        column: string,
-        by: "ASC" | "DESC",
-    },
-    group: string,
-    values: Array<any>,
+        column: string;
+        by: "ASC" | "DESC";
+    };
+    group: string;
+    values: Array<any>;
     set: {
-        [column:string]: any,
-    },
+        [column: string]: any;
+    };
 };
 
 export type Settings = {
-    schema: string,
-    dbWorker: string,
-    streamWorker: string,
+    schema: string;
+    dbWorker: string;
+    streamWorker: string;
 };
 
-export default class db {
-    public start(settings?:Partial<Settings>): Promise<string|void>;
-    public query(SQL:string, params?:unknown): Promise<any>;
-    public ingest(url:string, table:string, type?:"JSON" | "NDJSON"): Promise<void>;
+export class Database {
+    public start(settings?: Partial<Settings>): Promise<string | void>;
+    public query(SQL: string, params?: unknown): Promise<any>;
+    public ingest(
+        url: string,
+        table: string,
+        type?: "JSON" | "NDJSON"
+    ): Promise<void>;
 }
+declare const db: Database;
+export default db;
