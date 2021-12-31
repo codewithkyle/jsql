@@ -1,12 +1,4 @@
-import type {
-    Table,
-    Schema,
-    Column,
-    Query,
-    SQLFunction,
-    Condition,
-    Check,
-} from "../jsql";
+import type { Table, Schema, Column, Query, SQLFunction, Condition, Check } from "../jsql";
 import { openDB } from "./lib/idb";
 import Fuse from "fuse.js";
 
@@ -61,12 +53,7 @@ class JSQLWorker {
         }
     }
 
-    private send(
-        type: string,
-        data: any = null,
-        uid: string = null,
-        origin = null
-    ) {
+    private send(type: string, data: any = null, uid: string = null, origin = null) {
         const message = {
             type: type,
             data: data,
@@ -101,16 +88,12 @@ class JSQLWorker {
             const table = this.tables[i];
             const columns = {};
             for (let c = 0; c < table.columns.length; c++) {
-                columns[table.columns[c].key] =
-                    table.columns[c]?.default ?? null;
+                columns[table.columns[c].key] = table.columns[c]?.default ?? null;
             }
             this.defaults[table.name] = columns;
         }
         const pTables = {};
-        if (
-            currentVersion !== null &&
-            parseInt(currentVersion) !== schema.version
-        ) {
+        if (currentVersion !== null && parseInt(currentVersion) !== schema.version) {
             for (let i = 0; i < this.tables.length; i++) {
                 if (this.tables[i]?.persist) {
                     pTables[this.tables[i].name] = [];
@@ -118,24 +101,16 @@ class JSQLWorker {
             }
             await new Promise<void>((resolve) => {
                 try {
-                    const open = indexedDB.open(
-                        schema.name,
-                        parseInt(currentVersion)
-                    );
+                    const open = indexedDB.open(schema.name, parseInt(currentVersion));
                     open.onsuccess = async () => {
                         const oldDB = open.result;
                         for (const table in pTables) {
-                            pTables[table] = await new Promise(
-                                (tableResolve) => {
-                                    const tx = oldDB
-                                        .transaction(table, "readonly")
-                                        .objectStore(table)
-                                        .getAll();
-                                    tx.onsuccess = () => {
-                                        tableResolve(tx.result);
-                                    };
-                                }
-                            );
+                            pTables[table] = await new Promise((tableResolve) => {
+                                const tx = oldDB.transaction(table, "readonly").objectStore(table).getAll();
+                                tx.onsuccess = () => {
+                                    tableResolve(tx.result);
+                                };
+                            });
                         }
                         oldDB.close();
                         resolve();
@@ -178,14 +153,10 @@ class JSQLWorker {
                 }
             },
             blocked() {
-                console.error(
-                    "This app needs to restart. Close all tabs for this app and before relaunching."
-                );
+                console.error("This app needs to restart. Close all tabs for this app and before relaunching.");
             },
             blocking() {
-                console.error(
-                    "This app needs to restart. Close all tabs for this app and before relaunching."
-                );
+                console.error("This app needs to restart. Close all tabs for this app and before relaunching.");
             },
         });
         const inserts = [];
@@ -198,10 +169,7 @@ class JSQLWorker {
         return schema.version;
     }
 
-    private async performQuery(
-        queries: Array<Query>,
-        debug: boolean
-    ): Promise<Array<any>> {
+    private async performQuery(queries: Array<Query>, debug: boolean): Promise<Array<any>> {
         let rows = [];
         for (let i = 0; i < queries.length; i++) {
             const query = queries[i];
@@ -221,11 +189,7 @@ class JSQLWorker {
                 ) {
                     skipWhere = true;
                     // @ts-ignore
-                    output = await this.db.getAllFromIndex(
-                        query.table,
-                        query.where[0].checks[0].column,
-                        query.where[0].checks[0].value
-                    );
+                    output = await this.db.getAllFromIndex(query.table, query.where[0].checks[0].column, query.where[0].checks[0].value);
                 } else {
                     output = await this.db.getAll(query.table);
                 }
@@ -236,9 +200,7 @@ class JSQLWorker {
                     if (query.table === "*") {
                         const clearTransactions = [];
                         for (let t = 0; t < this.tables.length; t++) {
-                            clearTransactions.push(
-                                this.db.clear(this.tables[t].name)
-                            );
+                            clearTransactions.push(this.db.clear(this.tables[t].name));
                         }
                         await Promise.all(clearTransactions);
                     } else {
@@ -263,9 +225,7 @@ class JSQLWorker {
                             }
                         }
                         if (dirty) {
-                            transactions.push(
-                                this.db.put(query.table, output[r])
-                            );
+                            transactions.push(this.db.put(query.table, output[r]));
                         }
                     }
                     await Promise.all(transactions);
@@ -276,9 +236,7 @@ class JSQLWorker {
                     }
                     const key = this.getTableKey(query.table);
                     for (let r = 0; r < output.length; r++) {
-                        transactions.push(
-                            this.db.delete(query.table, output[r][key])
-                        );
+                        transactions.push(this.db.delete(query.table, output[r][key]));
                     }
                     await Promise.all(transactions);
                     break;
@@ -390,18 +348,12 @@ class JSQLWorker {
                 }
                 break;
             case "INCLUDES":
-                if (
-                    Array.isArray(row[check.column]) &&
-                    row[check.column].includes(check.value)
-                ) {
+                if (Array.isArray(row[check.column]) && row[check.column].includes(check.value)) {
                     didPassCheck = true;
                 }
                 break;
             case "EXCLUDES":
-                if (
-                    Array.isArray(row[check.column]) &&
-                    !row[check.column].includes(check.value)
-                ) {
+                if (Array.isArray(row[check.column]) && !row[check.column].includes(check.value)) {
                     didPassCheck = true;
                 }
                 break;
@@ -623,17 +575,9 @@ class JSQLWorker {
         };
         for (let i = segments.length - 1; i >= 0; i--) {
             const segment = segments[i].join(" ");
-            if (
-                segment.indexOf("+") !== -1 ||
-                segment.indexOf("/") !== -1 ||
-                segment.indexOf("%") !== -1
-            ) {
+            if (segment.indexOf("+") !== -1 || segment.indexOf("/") !== -1 || segment.indexOf("%") !== -1) {
                 throw `Invalid syntax. Arithmetic operators are not currently supported.`;
-            } else if (
-                segment.indexOf("&") !== -1 ||
-                segment.indexOf("|") !== -1 ||
-                segment.indexOf("^") !== -1
-            ) {
+            } else if (segment.indexOf("&") !== -1 || segment.indexOf("|") !== -1 || segment.indexOf("^") !== -1) {
                 throw `Invalid syntax. Bitwise operators are not currently supported.`;
             }
             switch (segments[i][0].toUpperCase()) {
@@ -647,31 +591,19 @@ class JSQLWorker {
                     if (segments[i].length !== 2) {
                         throw `Invalid syntax at: ${segments[i].join(" ")}`;
                     }
-                    query.offset = parseInt(
-                        this.injectParameter(segments[i][1], params)
-                    );
+                    query.offset = parseInt(this.injectParameter(segments[i][1], params));
                     break;
                 case "LIMIT":
                     if (segments[i].length !== 2) {
                         throw `Invalid syntax at: ${segments[i].join(" ")}`;
                     }
-                    query.limit = parseInt(
-                        this.injectParameter(segments[i][1], params)
-                    );
+                    query.limit = parseInt(this.injectParameter(segments[i][1], params));
                     break;
                 case "GROUP":
-                    query = this.parseGroupBySegment(
-                        segments[i],
-                        query,
-                        params
-                    );
+                    query = this.parseGroupBySegment(segments[i], query, params);
                     break;
                 case "ORDER":
-                    query = this.parseOrderBySegment(
-                        segments[i],
-                        query,
-                        params
-                    );
+                    query = this.parseOrderBySegment(segments[i], query, params);
                     break;
                 case "WHERE":
                     query = this.parseWhereSegment(segments[i], query, params);
@@ -742,11 +674,7 @@ class JSQLWorker {
         return queries;
     }
 
-    private parseSetSegment(
-        segments: Array<string>,
-        query: Query,
-        params: any
-    ): Query {
+    private parseSetSegment(segments: Array<string>, query: Query, params: any): Query {
         const columns = {};
         if (segments.length < 2) {
             throw `Invalid syntax at: ${segments.join(" ")}.`;
@@ -757,21 +685,16 @@ class JSQLWorker {
             for (let i = 0; i < groups.length; i++) {
                 const values = groups[i].trim().split("=");
                 if (values.length === 2) {
-                    columns[values[0].trim()] = values[1]
-                        .trim()
-                        .replace(/^[\"\']|[\"\']$/g, "");
+                    columns[values[0].trim()] = values[1].trim().replace(/^[\"\']|[\"\']$/g, "");
                 } else if (values.length === 1) {
-                    columns["*"] = values[0]
-                        .trim()
-                        .replace(/^[\"\']|[\"\']$/g, "");
+                    columns["*"] = values[0].trim().replace(/^[\"\']|[\"\']$/g, "");
                 } else {
                     throw `Invalid syntax at: SET ${values.join(" ")}`;
                 }
             }
         }
         for (const column in columns) {
-            query.set[this.injectParameter(column, params)] =
-                this.injectParameter(columns[column], params);
+            query.set[this.injectParameter(column, params)] = this.injectParameter(columns[column], params);
         }
         return query;
     }
@@ -788,9 +711,7 @@ class JSQLWorker {
                 };
                 statement[i] = statement[i].trim().replace(/\'|\"/g, "");
                 check.type = statement[i]
-                    .match(
-                        /\=|\=\=|\!\=|\!\=\=|\>|\<|\>\=|\<\=|\!\>\=|\!\<\=|\!\>|\!\<|\bLIKE\b|\bINCLUDES\b|\bEXCLUDES\b/gi
-                    )
+                    .match(/\=|\=\=|\!\=|\!\=\=|\>|\<|\>\=|\<\=|\!\>\=|\!\<\=|\!\>|\!\<|\bLIKE\b|\bINCLUDES\b|\bEXCLUDES\b/gi)
                     .join("")
                     .trim();
                 const values = statement[i].split(check.type);
@@ -806,9 +727,7 @@ class JSQLWorker {
             };
             statement = statement.trim().replace(/\'|\"/g, "");
             check.type = statement
-                .match(
-                    /\=|\=\=|\!\=|\!\=\=|\>|\<|\>\=|\<\=|\!\>\=|\!\<\=|\!\>|\!\<|\bLIKE\b|\bINCLUDES\b|\bEXCLUDES\b/gi
-                )
+                .match(/\=|\=\=|\!\=|\!\=\=|\>|\<|\>\=|\<\=|\!\>\=|\!\<\=|\!\>|\!\<|\bLIKE\b|\bINCLUDES\b|\bEXCLUDES\b/gi)
                 .join("")
                 .trim();
             const values = statement.split(check.type);
@@ -845,11 +764,7 @@ class JSQLWorker {
         return condition;
     }
 
-    private parseWhereSegment(
-        segments: Array<string>,
-        query: Query,
-        params: any
-    ): Query {
+    private parseWhereSegment(segments: Array<string>, query: Query, params: any): Query {
         if (segments.length < 2) {
             throw `Invalid syntax at: ${segments.join(" ")}.`;
         } else {
@@ -912,23 +827,15 @@ class JSQLWorker {
                             c++
                         ) {
                             const check = query.where[i].checks[k][c] as Check;
-                            query.where[i].checks[k][c].value =
-                                this.injectParameter(check.value, params);
-                            query.where[i].checks[k][c].column =
-                                this.injectParameter(check.column, params);
+                            query.where[i].checks[k][c].value = this.injectParameter(check.value, params);
+                            query.where[i].checks[k][c].column = this.injectParameter(check.column, params);
                         }
                     } else {
                         const check = query.where[i].checks[k] as Check;
                         // @ts-ignore
-                        query.where[i].checks[k].value = this.injectParameter(
-                            check.value,
-                            params
-                        );
+                        query.where[i].checks[k].value = this.injectParameter(check.value, params);
                         // @ts-ignore
-                        query.where[i].checks[k].column = this.injectParameter(
-                            check.column,
-                            params
-                        );
+                        query.where[i].checks[k].column = this.injectParameter(check.column, params);
                     }
                 }
             }
@@ -936,11 +843,7 @@ class JSQLWorker {
         }
     }
 
-    private parseGroupBySegment(
-        segments: Array<string>,
-        query: Query,
-        params
-    ): Query {
+    private parseGroupBySegment(segments: Array<string>, query: Query, params): Query {
         if (segments.length !== 3) {
             throw `Invalid syntax. GROUP BY only currently supports single column sorting.`;
         }
@@ -951,11 +854,7 @@ class JSQLWorker {
         return query;
     }
 
-    private parseOrderBySegment(
-        segments: Array<string>,
-        query: Query,
-        params
-    ): Query {
+    private parseOrderBySegment(segments: Array<string>, query: Query, params): Query {
         if (segments.length < 3 || segments[1] !== "BY") {
             throw `Invalid syntax at: ${segments.join(" ")}.`;
         } else {
@@ -980,11 +879,7 @@ class JSQLWorker {
         return query;
     }
 
-    private parseValues(
-        segments: Array<string>,
-        query: Query,
-        params: any
-    ): Query {
+    private parseValues(segments: Array<string>, query: Query, params: any): Query {
         if (segments.length === 1) {
             throw `Invalid syntax at: ${segments}.`;
         } else {
@@ -994,14 +889,8 @@ class JSQLWorker {
             for (let i = 0; i < objects.length; i++) {
                 const values = objects[i].split(",");
                 let obj = { ...this.defaults[query.table] };
-                if (
-                    values.length === 1 &&
-                    values[0].trim().indexOf("$") === 0
-                ) {
-                    obj = Object.assign(
-                        obj,
-                        this.injectParameter(values[i], params)
-                    );
+                if (values.length === 1 && values[0].trim().indexOf("$") === 0) {
+                    obj = Object.assign(obj, this.injectParameter(values[i], params));
                     query.values.push(obj);
                 } else if (values.length >= 1) {
                     let v = 0;
@@ -1017,7 +906,6 @@ class JSQLWorker {
                     throw `Invalid syntax. VALUE error at ${objects[i]}`;
                 }
             }
-            console.log(query.values);
         }
         return query;
     }
@@ -1036,11 +924,7 @@ class JSQLWorker {
         return value;
     }
 
-    private parseInsertSegment(
-        segments: Array<string>,
-        query: Query,
-        params
-    ): Query {
+    private parseInsertSegment(segments: Array<string>, query: Query, params): Query {
         if (segments.length < 3 || segments[1] !== "INTO") {
             throw `Invalid syntax at: ${segments.join(" ")}.`;
         } else if (segments.length === 3) {
@@ -1051,18 +935,11 @@ class JSQLWorker {
         return query;
     }
 
-    private parseSelectSegment(
-        segments: Array<string>,
-        query: Query,
-        params
-    ): Query {
+    private parseSelectSegment(segments: Array<string>, query: Query, params): Query {
         if (segments.includes("*")) {
             query.columns = ["*"];
         }
-        if (
-            segments[1].toUpperCase() === "DISTINCT" ||
-            segments[1].toUpperCase() === "UNIQUE"
-        ) {
+        if (segments[1].toUpperCase() === "DISTINCT" || segments[1].toUpperCase() === "UNIQUE") {
             if (segments.includes("*")) {
                 throw `Invalid SELECT statement. DISTINCT or UNIQUE does not currently support the wildcard (*) character.`;
             }
