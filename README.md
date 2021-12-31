@@ -23,7 +23,7 @@ import db from "https://unpkg.com/@codewithkyle/jsql@1/jsql.js";
 db.start();
 ```
 
-> **Hint**: read the [setup guide](https://github.com/codewithkyle/jsql/wiki/Setup) for additional details and configuration options.
+> **Hint**: read the [setup guide](https://jsql.codewithkyle.com/guides/setup) for additional details and configuration options.
 
 ## Writing Queries
 
