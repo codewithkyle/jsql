@@ -27,17 +27,9 @@ db.start();
 
 ## Writing Queries
 
-```javascript
-// Query data from IndexedDB
-db.query("SELECT * FROM users LIMIT 10")
-    .then(users => {
-        users.map(user => { console.log(user) });
-    })
-    .catch(error => {
-        console.error(error);
-    });
+Insert data into IndexedDB
 
-// Insert data into IndexedDB
+```javascript
 db.query("INSERT INTO users VALUES ($user1, $user2)", {
     user1: {
         name: "Frank",
@@ -48,4 +40,11 @@ db.query("INSERT INTO users VALUES ($user1, $user2)", {
         email: "popartfan18@example.com",
     }
 });
+```
+
+Query data from IndexedDB
+
+```javascript
+const users = await db.query("SELECT * FROM users LIMIT 10")
+users.map(user => console.log(user));
 ```
