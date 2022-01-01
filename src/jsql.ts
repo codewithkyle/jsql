@@ -20,8 +20,7 @@ class JSQLManager {
         this.settings = {
             schema: `${location.origin}/schema.json`,
             dbWorker: "https://unpkg.com/@codewithkyle/jsql@1/jsql.worker.js",
-            streamWorker:
-                "https://unpkg.com/@codewithkyle/jsql@1/stream.worker.js",
+            streamWorker: "https://unpkg.com/@codewithkyle/jsql@1/stream.worker.js",
         };
     }
 
@@ -41,23 +40,14 @@ class JSQLManager {
         return url;
     }
 
-    public async start(
-        settings: Partial<Settings> = {}
-    ): Promise<string | void> {
+    public async start(settings: Partial<Settings> = {}): Promise<string | void> {
         this.settings = Object.assign(this.settings, settings);
         const type = typeof this.settings.schema;
         if (type !== "string" && type !== "object") {
-            console.error(
-                "Schema file setting must be a schema object or a URL"
-            );
+            console.error("Schema file setting must be a schema object or a URL");
             return;
-        } else if (
-            type === "string" &&
-            this.settings.schema.indexOf("http") !== 0
-        ) {
-            console.error(
-                "Schema file setting must be a complete URL. Ex: https://example.com/schema.json"
-            );
+        } else if (type === "string" && this.settings.schema.indexOf("http") !== 0) {
+            console.error("Schema file setting must be a complete URL. Ex: https://example.com/schema.json");
             return;
         }
         const version = await new Promise(async (resolve, reject) => {
@@ -65,25 +55,21 @@ class JSQLManager {
                 const url = await this.getWorkerURL(this.settings.dbWorker);
                 this.worker = new Worker(url);
                 this.worker.onmessage = this.inbox.bind(this);
-                const version = await new Promise(
-                    (internalResolve, interalReject) => {
-                        const messageUid = uuid();
-                        this.promises[messageUid] = {
-                            success: internalResolve,
-                            fail: interalReject,
-                        };
-                        this.worker.postMessage({
-                            uid: messageUid,
-                            type: "init",
-                            data: {
-                                schema: this.settings.schema,
-                                currentVersion:
-                                    localStorage.getItem("JSQL_DB_VERSION") ||
-                                    null,
-                            },
-                        });
-                    }
-                );
+                const version = await new Promise((internalResolve, interalReject) => {
+                    const messageUid = uuid();
+                    this.promises[messageUid] = {
+                        success: internalResolve,
+                        fail: interalReject,
+                    };
+                    this.worker.postMessage({
+                        uid: messageUid,
+                        type: "init",
+                        data: {
+                            schema: this.settings.schema,
+                            currentVersion: localStorage.getItem("JSQL_DB_VERSION") || null,
+                        },
+                    });
+                });
                 this.flushQueue();
                 resolve(version);
             } catch (e) {
@@ -110,9 +96,7 @@ class JSQLManager {
                 }
                 break;
             default:
-                console.warn(
-                    `Unknown JSQL Worker response message type: ${type}`
-                );
+                console.warn(`Unknown JSQL Worker response message type: ${type}`);
                 break;
         }
     }
@@ -125,12 +109,7 @@ class JSQLManager {
         }
     }
 
-    private send(
-        type: string,
-        data: any = null,
-        resolve: Function = noop,
-        reject: Function = noop
-    ) {
+    private send(type: string, data: any = null, resolve: Function = noop, reject: Function = noop) {
         const messageUid = uuid();
         const message = {
             type: type,
@@ -148,13 +127,13 @@ class JSQLManager {
         }
     }
 
-    public query(
+    public query<T>(
         SQL: string,
         params: {
             [key: string]: any;
         } | null = null,
         debug = false
-    ): Promise<any> {
+    ): Promise<Array<T>> {
         return new Promise((resolve, reject) => {
             this.send(
                 "sql",
@@ -200,15 +179,9 @@ class JSQLManager {
         });
     }
 
-    public async ingest(
-        url: string,
-        table: string,
-        type: "JSON" | "NDJSON" = "NDJSON"
-    ) {
+    public async ingest(url: string, table: string, type: "JSON" | "NDJSON" = "NDJSON") {
         if (url.indexOf("http") !== 0) {
-            console.error(
-                "Ingest URL must be a complete URL. Ex: https://example.com/data.json"
-            );
+            console.error("Ingest URL must be a complete URL. Ex: https://example.com/data.json");
             return;
         }
         if (type === "JSON") {
@@ -220,9 +193,7 @@ class JSQLManager {
 
     private ingestAsNDJSON(url: string, table: string): Promise<void> {
         return new Promise(async (resolve, reject) => {
-            const workerURL = await this.getWorkerURL(
-                this.settings.streamWorker
-            );
+            const workerURL = await this.getWorkerURL(this.settings.streamWorker);
             const worker = new Worker(workerURL);
             let total = 0;
             let totalInserted = 0;
@@ -233,12 +204,9 @@ class JSQLManager {
                     switch (type) {
                         case "result":
                             total++;
-                            await this.query(
-                                `INSERT INTO ${table} VALUES ($row)`,
-                                {
-                                    row: result,
-                                }
-                            );
+                            await this.query(`INSERT INTO ${table} VALUES ($row)`, {
+                                row: result,
+                            });
                             totalInserted++;
                             if (total === totalInserted && hasFinished) {
                                 resolve();
@@ -289,12 +257,7 @@ class JSQLManager {
 
 function uuid() {
     // @ts-ignore
-    return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) =>
-        (
-            c ^
-            (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))
-        ).toString(16)
-    );
+    return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) => (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16));
 }
 
 const noop = () => {};

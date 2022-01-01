@@ -47,7 +47,11 @@ class JSQLWorker {
             this.send("response", output, uid);
         } catch (e) {
             if (data?.sql?.length) {
-                e = `${e} (${data.sql})`;
+                console.groupCollapsed();
+                console.error(e);
+                console.log(`SQL: ${data.sql}`);
+                console.log("Params:", data.params);
+                console.groupEnd();
             }
             this.send("error", e, uid);
         }

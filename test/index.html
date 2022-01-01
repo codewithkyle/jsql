@@ -1,118 +1,73 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JSQL Playground</title>
-    <link href="https://unpkg.com/brixi@^0.5/brixi.min.css" rel="stylesheet">
-    <link href="/input.css" rel="stylesheet">
-    <style>
-        *{
-            box-sizing: border-box;
-        }
-        body{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            color: var(--grey-800);
-        }
-    </style>
-</head>
-<body class="w-screen h-screen overflow-hidden bg-grey-200" flex="items-center justify-center">
-    <form class="bg-white radius-0.5 p-1 border-1 border-solid border-grey-300 shadow-md max-w-full w-768">
-        <input-component class="block w-full">
-            <label for="query">SQL Query</label>
-            <input type="text" id="query" autocapitalize="off" autocomplete="off" required />
-        </input-component>
-    </form>
-    <script type="module">
-        import db from "./jsql.js";
-        db.start({
-            schema: {
-                name: "demo",
-                version: 6,
-                tables: [
-                    {
-                        name: "users",
-                        keyPath: "uid",
-                        persist: true,
-                        columns: [
-                            {
-                                key: "uid",
-                                unique: true
-                            },
-                            {
-                                key: "name",
-                                default: "Jeff",
-                            },
-                            {
-                                key: "customerId"
-                            },
-                            {
-                                key: "order",
-                            }
-                        ]
-                    },
-                    {
-                        name: "orders",
-                        keyPath: "id",
-                        columns: [
-                            {
-                                key: "id",
-                                unique: true,
-                                autoIncrement: true
-                            },
-                            {
-                                key: "name"
-                            },
-                            {
-                                key: "products"
-                            }
-                        ]
-                    }
-                ]
-            },
-            dbWorker: `./jsql.worker.js`,
-            streamWorker: `./stream.worker.js`,
-        }).then(() => {
-            /*
-            if (!localStorage.getItem("loaded-once")){
-                db.ingest(`${location.origin}/cards.ndjson`, "cards").then(() => {
-                    alert("Application is ready");
-                    localStorage.setItem("loaded-once", true);
-                });
-                const letters = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"];
-                for (let i = 1; i <= 100; i++){
-                    const value = {};
-                    for (const letter of letters){
-                        value[letter] = i;
-                    }
-                    db.query(`INSERT INTO test VALUES ($value)`, {
-                        value: value,
-                    });
-                }
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>JSQL Playground</title>
+        <link href="https://unpkg.com/brixi@^0.5/brixi.min.css" rel="stylesheet" />
+        <link href="/input.css" rel="stylesheet" />
+        <style>
+            * {
+                box-sizing: border-box;
             }
-            */
-        }).catch(e => {
-            console.error(e);
-        });
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+                color: var(--grey-800);
+            }
+        </style>
+    </head>
+    <body class="w-screen h-screen overflow-hidden bg-grey-200" flex="items-center justify-center">
+        <form class="bg-white radius-0.5 p-1 border-1 border-solid border-grey-300 shadow-md max-w-full w-768">
+            <input-component class="block w-full">
+                <label for="query">SQL Query</label>
+                <input type="text" id="query" autocapitalize="off" autocomplete="off" required />
+            </input-component>
+        </form>
+        <script type="module">
+            import db from "./jsql.js";
+            db.start({
+                schema: `${location.origin}/schema.json`,
+                dbWorker: `./jsql.worker.js`,
+                streamWorker: `./stream.worker.js`,
+            })
+                .then(() => {
+                    if (!localStorage.getItem("loaded-once")) {
+                        db.ingest(`${location.origin}/cards.ndjson`, "cards").then(() => {
+                            alert("Application is ready");
+                            localStorage.setItem("loaded-once", true);
+                        });
+                        const letters = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"];
+                        for (let i = 1; i <= 100; i++) {
+                            const value = {};
+                            for (const letter of letters) {
+                                value[letter] = i;
+                            }
+                            db.query(`INSERT INTO test VALUES ($value)`, {
+                                value: value,
+                            });
+                        }
+                    }
+                })
+                .catch((e) => {});
 
-        const form = document.body.querySelector("form");
-        const input = document.body.querySelector("input");
-        form.addEventListener("submit", async (e) => {
-            e.preventDefault();
-            try{
-                const value = input.value;
-                const output = await db.query(value, {
-                    user: {
-                        customerId: 2,
-                        uid: 2,
-                    }
-                });
-                console.log(output);
-            } catch (e) {
-                console.error(e);
-            }
-        });
-    </script>
-</body>
+            const form = document.body.querySelector("form");
+            const input = document.body.querySelector("input");
+            form.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                try {
+                    const value = input.value;
+                    const output = await db.query(value, {
+                        user: {
+                            customerId: 2,
+                            uid: 2,
+                        },
+                    });
+                    console.log(output);
+                } catch (e) {
+                    console.error(e);
+                }
+            });
+        </script>
+    </body>
 </html>
