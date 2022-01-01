@@ -10,11 +10,13 @@ class JSQLWorker {
             [column: string]: any;
         };
     };
+    private schema: Schema;
 
     constructor() {
         this.db = null;
         this.tables = null;
         this.defaults = {};
+        this.schema = null;
         self.onmessage = this.inbox.bind(this);
     }
 
@@ -48,8 +50,8 @@ class JSQLWorker {
         } catch (e) {
             if (data?.sql?.length) {
                 console.groupCollapsed();
-                console.error(e);
-                console.log(`SQL: ${data.sql}`);
+                console.error("Error: ", e);
+                console.log("SQL: ", data.sql);
                 console.log("Params:", data.params);
                 console.groupEnd();
             }
@@ -87,6 +89,7 @@ class JSQLWorker {
         } else {
             schema = a;
         }
+        this.schema = schema;
         this.tables = schema.tables;
         for (let i = 0; i < this.tables.length; i++) {
             const table = this.tables[i];
@@ -146,6 +149,7 @@ class JSQLWorker {
                     }
                     if (typeof table.autoIncrement !== "undefined") {
                         options.autoIncrement = table.autoIncrement;
+                        delete options["keyPath"]; // auto incremented keys must be out-of-line keys
                     }
                     const store = db.createObjectStore(table.name, options);
                     for (let k = 0; k < table.columns.length; k++) {
@@ -177,6 +181,7 @@ class JSQLWorker {
         let rows = [];
         for (let i = 0; i < queries.length; i++) {
             const query = queries[i];
+            const table = this.getTable(query.table);
             if (debug) {
                 console.log(query);
             }
@@ -238,9 +243,8 @@ class JSQLWorker {
                     if (query.where !== null && !skipWhere) {
                         output = this.handleWhere(query, output);
                     }
-                    const key = this.getTableKey(query.table);
                     for (let r = 0; r < output.length; r++) {
-                        transactions.push(this.db.delete(query.table, output[r][key]));
+                        transactions.push(this.db.delete(query.table, output[r][table.keyPath]));
                     }
                     await Promise.all(transactions);
                     break;
@@ -253,7 +257,11 @@ class JSQLWorker {
                     for (const row of query.values) {
                         const a = { ...this.defaults[query.table] };
                         const b = Object.assign(a, row);
-                        await this.db.put(query.table, b);
+                        if (table?.autoIncrement) {
+                            await this.db.add(query.table, b);
+                        } else {
+                            await this.db.put(query.table, b);
+                        }
                     }
                     output = query.values;
                     break;
@@ -324,17 +332,15 @@ class JSQLWorker {
         return output;
     }
 
-    private getTableKey(table: string) {
-        let key = "id";
-        for (let i = 0; i < this.tables.length; i++) {
-            if (this.tables[i].name === table) {
-                if (this.tables[i]?.keyPath) {
-                    key = this.tables[i].keyPath;
-                }
+    private getTable(name: string): Table {
+        let out = null;
+        for (let i = 0; i < this.schema.tables.length; i++) {
+            if (this.schema.tables[i].name === name) {
+                out = this.schema.tables[i];
                 break;
             }
         }
-        return key;
+        return out;
     }
 
     private check(check: Check, row: any): boolean {
