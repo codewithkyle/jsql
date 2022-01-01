@@ -182,12 +182,23 @@ class JSQLWorker {
         for (let i = 0; i < queries.length; i++) {
             const query = queries[i];
             const table = this.getTable(query.table);
+
             if (debug) {
                 console.log(query);
             }
+
             let output = [];
             let skipWhere = false;
-            if (query.type !== "INSERT" && query.table !== "*") {
+            let bypass = false;
+            let optimized = false;
+
+            // Query optimizer
+            if (query.type === "SELECT" && query.function === "COUNT" && !query.uniqueOnly && query.where === null) {
+                // Optimize IDB query when we are only looking to count all rows
+                bypass = true;
+                optimized = true;
+                output = await this.db.count(query.table);
+            } else if (query.type !== "INSERT" && query.table !== "*") {
                 // Optimize IDB query when we are only looking for 1 value from 1 column
                 if (
                     query.where !== null &&
@@ -197,104 +208,107 @@ class JSQLWorker {
                     query.where[0].checks[0].type === "=="
                 ) {
                     skipWhere = true;
-                    // @ts-ignore
+                    optimized = true;
                     output = await this.db.getAllFromIndex(query.table, query.where[0].checks[0].column, query.where[0].checks[0].value);
-                } else {
-                    output = await this.db.getAll(query.table);
                 }
             }
-            const transactions = [];
-            switch (query.type) {
-                case "RESET":
-                    if (query.table === "*") {
-                        const clearTransactions = [];
-                        for (let t = 0; t < this.tables.length; t++) {
-                            clearTransactions.push(this.db.clear(this.tables[t].name));
+
+            if (!optimized) {
+                output = await this.db.getAll(query.table);
+            }
+
+            if (!bypass) {
+                const transactions = [];
+                switch (query.type) {
+                    case "RESET":
+                        if (query.table === "*") {
+                            const clearTransactions = [];
+                            for (let t = 0; t < this.tables.length; t++) {
+                                clearTransactions.push(this.db.clear(this.tables[t].name));
+                            }
+                            await Promise.all(clearTransactions);
+                        } else {
+                            await this.db.clear(query.table);
                         }
-                        await Promise.all(clearTransactions);
-                    } else {
-                        await this.db.clear(query.table);
-                    }
-                    break;
-                case "UPDATE":
-                    if (query.where !== null && !skipWhere) {
-                        output = this.handleWhere(query, output);
-                    }
-                    for (let r = 0; r < output.length; r++) {
-                        let dirty = false;
-                        for (const column in query.set) {
-                            if (column === "*") {
-                                output[r] = query.set[column];
-                                dirty = true;
-                            } else {
-                                if (column in output[r]) {
-                                    output[r][column] = query.set[column];
+                        break;
+                    case "UPDATE":
+                        if (query.where !== null && !skipWhere) {
+                            output = this.handleWhere(query, output);
+                        }
+                        for (let r = 0; r < output.length; r++) {
+                            let dirty = false;
+                            for (const column in query.set) {
+                                if (column === "*") {
+                                    output[r] = query.set[column];
                                     dirty = true;
+                                } else {
+                                    if (column in output[r]) {
+                                        output[r][column] = query.set[column];
+                                        dirty = true;
+                                    }
                                 }
                             }
+                            if (dirty) {
+                                transactions.push(this.db.put(query.table, output[r]));
+                            }
                         }
-                        if (dirty) {
-                            transactions.push(this.db.put(query.table, output[r]));
+                        await Promise.all(transactions);
+                        break;
+                    case "DELETE":
+                        if (query.where !== null && !skipWhere) {
+                            output = this.handleWhere(query, output);
                         }
-                    }
-                    await Promise.all(transactions);
-                    break;
-                case "DELETE":
-                    if (query.where !== null && !skipWhere) {
-                        output = this.handleWhere(query, output);
-                    }
-                    for (let r = 0; r < output.length; r++) {
-                        transactions.push(this.db.delete(query.table, output[r][table.keyPath]));
-                    }
-                    await Promise.all(transactions);
-                    break;
-                case "SELECT":
-                    if (query.where !== null && !skipWhere) {
-                        output = this.handleWhere(query, output);
-                    }
-                    break;
-                case "INSERT":
-                    for (const row of query.values) {
-                        const a = { ...this.defaults[query.table] };
-                        const b = Object.assign(a, row);
-                        if (table?.autoIncrement) {
-                            await this.db.add(query.table, b);
+                        for (let r = 0; r < output.length; r++) {
+                            transactions.push(this.db.delete(query.table, output[r][table.keyPath]));
+                        }
+                        await Promise.all(transactions);
+                        break;
+                    case "SELECT":
+                        if (query.where !== null && !skipWhere) {
+                            output = this.handleWhere(query, output);
+                        }
+                        if (query.uniqueOnly) {
+                            output = this.getUnique(output, query.columns);
+                        }
+                        if (query.function !== null) {
+                            output = this.handleSelectFunction(query, output);
                         } else {
-                            await this.db.put(query.table, b);
+                            if (query.columns.length && query.columns[0] !== "*") {
+                                output = this.filterColumns(query, output);
+                            }
+                            if (query.order !== null) {
+                                this.sort(query, output);
+                            }
+                            if (query.limit !== null) {
+                                output = output.splice(query.offset, query.limit);
+                            }
                         }
-                    }
-                    output = query.values;
-                    break;
-                default:
-                    break;
-            }
-            if (query.type === "SELECT") {
-                if (query.function !== null) {
-                    output = this.handleSelectFunction(query, output);
-                } else {
-                    if (query.uniqueOnly) {
-                        output = this.getUnique(output, query.columns);
-                    }
-                    if (query.columns.length && query.columns[0] !== "*") {
-                        output = this.filterColumns(query, output);
-                    }
-                    if (query.order !== null) {
-                        this.sort(query, output);
-                    }
-                    if (query.limit !== null) {
-                        output = output.splice(query.offset, query.limit);
-                    }
+                        break;
+                    case "INSERT":
+                        for (const row of query.values) {
+                            const a = { ...this.defaults[query.table] };
+                            const b = Object.assign(a, row);
+                            if (table?.autoIncrement) {
+                                await this.db.add(query.table, b);
+                            } else {
+                                await this.db.put(query.table, b);
+                            }
+                        }
+                        output = query.values;
+                        break;
+                    default:
+                        break;
                 }
-            }
-            if (query.uniqueOnly) {
-                const temp = [];
-                for (let i = 0; i < output.length; i++) {
-                    temp.push(output[i][query.columns[0]]);
+                if (query.uniqueOnly) {
+                    const temp = [];
+                    for (let i = 0; i < output.length; i++) {
+                        temp.push(output[i][query.columns[0]]);
+                    }
+                    output = temp;
+                } else if (query.group !== null) {
+                    // @ts-ignore
+                    output = this.buildGroups(output, query.group);
                 }
-                output = temp;
-            } else if (query.group !== null) {
-                // @ts-ignore
-                output = this.buildGroups(output, query.group);
             }
             if (Array.isArray(output)) {
                 rows = [...rows, ...output];
@@ -929,7 +943,7 @@ class JSQLWorker {
                 throw `Invalid params. Missing key: ${key}`;
             }
         } else if (typeof value === "string") {
-            value = value.replace(/\[|\]/g, "").trim();
+            value = value.replace(/\bcount\b|\bmin\b|\bmax\b|\bavg\b|\bsum\b|\(|\)|\[|\]/gi, "").trim();
         }
         return value;
     }

@@ -57,13 +57,11 @@
                 e.preventDefault();
                 try {
                     const value = input.value;
-                    const output = await db.query(value, {
-                        user: {
-                            customerId: 2,
-                            uid: 2,
-                        },
-                    });
-                    console.log(output);
+                    const start = performance.now();
+                    const output = await db.query(value);
+                    const stop = performance.now();
+                    console.log("Results:", output);
+                    console.log(`⏱ Performed in ${((stop - start) / 1000).toFixed(3)} sec`);
                 } catch (e) {
                     console.error(e);
                 }
