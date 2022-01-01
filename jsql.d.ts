@@ -60,6 +60,12 @@ export type Settings = {
 
 export class Database {
     public start(settings?: Partial<Settings>): Promise<string | void>;
+
+    /**
+     * Access IndexedDB data using an SQL query.
+     * @see https://jsql.codewithkyle.com/
+     * @example await db.query("SELECT * FROM table_name WHERE column_name = $value", { value: 1 });
+     */
     public query<T>(
         SQL: string,
         params?: {
@@ -67,6 +73,7 @@ export class Database {
         } | null,
         debug?: boolean
     ): Promise<Array<T>>;
+
     public ingest(url: string, table: string, type?: "JSON" | "NDJSON"): Promise<void>;
 }
 declare const db: Database;

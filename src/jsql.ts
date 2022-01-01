@@ -127,6 +127,11 @@ class JSQLManager {
         }
     }
 
+    /**
+     * Access IndexedDB data using an SQL query.
+     * @see https://jsql.codewithkyle.com/
+     * @example await db.query("SELECT * FROM table_name WHERE column_name = $value", { value: 1 });
+     */
     public query<T>(
         SQL: string,
         params: {
