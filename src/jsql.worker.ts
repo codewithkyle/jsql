@@ -193,16 +193,29 @@ class JSQLWorker {
             let optimized = false;
 
             // Query optimizer
-            if (query.type === "SELECT" && query.function === "COUNT" && query.where === null) {
+            if (
+                (!query.uniqueOnly && query.type === "SELECT" && query.function === "COUNT" && query.where === null) ||
+                (query.where !== null &&
+                    query.where.length === 1 &&
+                    query.where[0].checks.length === 1 &&
+                    !Array.isArray(query.where[0].checks[0]) &&
+                    query.where[0].checks[0].type === "==" &&
+                    !query.uniqueOnly)
+            ) {
                 // Optimize IDB query when we are only looking to count rows
-                if ((query.uniqueOnly && query.columns[0] !== "*") || !query.uniqueOnly) {
+                if (query.where === null) {
                     bypass = true;
                     optimized = true;
-                    if (query.uniqueOnly) {
+                    if (query.columns?.[0] !== "*") {
                         output = await this.db.countFromIndex(query.table, query.columns[0]);
                     } else {
                         output = await this.db.count(query.table);
                     }
+                } else {
+                    optimized = true;
+                    bypass = true;
+                    // @ts-expect-error
+                    output = await this.db.countFromIndex(query.table, query.where[0].checks[0].column, query.where[0].checks[0].value);
                 }
             } else if (query.type !== "INSERT" && query.table !== "*") {
                 // Optimize IDB query when we are only looking for 1 value from 1 column

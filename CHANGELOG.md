@@ -21,9 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Optimizations
 
--   `SELECT` statements using the `COUNT()` SQL function **without** a `WHERE` clause or `UNIQUE` constraint are now 6x faster after switching to the [IDBObjectStore's built in count function](https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore/count)
+-   `SELECT` statements using the `COUNT()` SQL function **without** a `UNIQUE` clause are now 6x faster after switching to the [IDBObjectStore's built in count function](https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore/count)
 -   updated to [idb@7](https://github.com/jakearchibald/idb/releases/tag/v7.0.0)
--   reduced memory footprint for non wildcard (`*`) queries
+-   reduced memory footprint for non-wildcard (`*`) queries
 -   relocated the `UNIQUE` constraint function
 
 [unreleased]: https://github.com/codewithkyle/jsql/compare/v1.1.2...HEAD
