@@ -58,7 +58,7 @@
                 try {
                     const value = input.value;
                     const start = performance.now();
-                    const output = await db.query(value);
+                    const output = await db.query(value, null, true);
                     const stop = performance.now();
                     console.log(value);
                     console.log("Results:", output);

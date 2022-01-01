@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 -   `query()` method now has a default response type of `Promise<Array<any>>` instead of `Promise<any>`
--   [SQL Functions](https://jsql.codewithkyle.com/clauses-and-operators/sql-functions) now support the `UNIQUE` constraint
 -   auto incremented `INSERT INTO` bug
 -   improved error logging format: errors now include the SQL query and the parameters object contained within a collapsed console log group
 
@@ -18,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   custom `query()` response types ([#20](https://github.com/codewithkyle/jsql/issues/20))
 -   `ORDER BY` support on `UNIQUE` constrained queries
+-   [SQL Functions](https://jsql.codewithkyle.com/clauses-and-operators/sql-functions) now support the `UNIQUE` constraint
 
 ### Optimizations
 

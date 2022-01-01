@@ -193,11 +193,17 @@ class JSQLWorker {
             let optimized = false;
 
             // Query optimizer
-            if (query.type === "SELECT" && query.function === "COUNT" && !query.uniqueOnly && query.where === null) {
-                // Optimize IDB query when we are only looking to count all rows
-                bypass = true;
-                optimized = true;
-                output = await this.db.count(query.table);
+            if (query.type === "SELECT" && query.function === "COUNT" && query.where === null) {
+                // Optimize IDB query when we are only looking to count rows
+                if ((query.uniqueOnly && query.columns[0] !== "*") || !query.uniqueOnly) {
+                    bypass = true;
+                    optimized = true;
+                    if (query.uniqueOnly) {
+                        output = await this.db.countFromIndex(query.table, query.columns[0]);
+                    } else {
+                        output = await this.db.count(query.table);
+                    }
+                }
             } else if (query.type !== "INSERT" && query.table !== "*") {
                 // Optimize IDB query when we are only looking for 1 value from 1 column
                 if (
@@ -210,6 +216,14 @@ class JSQLWorker {
                     skipWhere = true;
                     optimized = true;
                     output = await this.db.getAllFromIndex(query.table, query.where[0].checks[0].column, query.where[0].checks[0].value);
+                } else if (query.where === null && query.columns.length === 1 && query.uniqueOnly && !query.function) {
+                    // Optimize IDB query when we are only looking for values from 1 column
+                    optimized = true;
+                    bypass = true;
+                    output = await this.db.getAllKeysFromIndex(query.table, query.columns[0]);
+                    if (query.order !== null) {
+                        this.sort(query, output);
+                    }
                 }
             }
 
@@ -492,7 +506,7 @@ class JSQLWorker {
             case "MIN":
                 let min;
                 for (let i = 0; i < rows.length; i++) {
-                    let value = rows[i]?.[query.columns[0]] ?? 0;
+                    let value = rows[i]?.[query.columns[0]] ?? rows[i];
                     if (i === 0) {
                         min = value;
                     } else {
@@ -506,7 +520,7 @@ class JSQLWorker {
             case "MAX":
                 let max;
                 for (let i = 0; i < rows.length; i++) {
-                    let value = rows[i]?.[query.columns[0]] ?? 0;
+                    let value = rows[i]?.[query.columns[0]] ?? rows[i];
                     if (i === 0) {
                         max = value;
                     } else {
@@ -520,7 +534,7 @@ class JSQLWorker {
             case "SUM":
                 output = 0;
                 for (let i = 0; i < rows.length; i++) {
-                    let value = rows[i]?.[query.columns[0]] ?? 0;
+                    let value = rows[i]?.[query.columns[0]] ?? rows[i];
                     if (isNaN(value) || !isFinite(value)) {
                         value = 0;
                     }
@@ -530,7 +544,7 @@ class JSQLWorker {
             case "AVG":
                 let total = 0;
                 for (let i = 0; i < rows.length; i++) {
-                    let value = rows[i]?.[query.columns[0]] ?? 0;
+                    let value = rows[i]?.[query.columns[0]] ?? rows[i];
                     if (isNaN(value) || !isFinite(value)) {
                         value = 0;
                     }
@@ -962,25 +976,22 @@ class JSQLWorker {
         if (segments.includes("*")) {
             query.columns = ["*"];
         }
+
         if (segments[1].toUpperCase() === "DISTINCT" || segments[1].toUpperCase() === "UNIQUE") {
             if (segments.includes("*")) {
                 throw `Invalid SELECT statement. DISTINCT or UNIQUE does not currently support the wildcard (*) character.`;
             }
             query.uniqueOnly = true;
             segments.splice(1, 1);
-            if (segments.length > 2) {
-                throw `Invalid SELECT statement. DISTINCT or UNIQUE does not currently support multiple columns.`;
-            }
-        } else if (
+        }
+
+        if (
             segments[1].toUpperCase().search(/\bCOUNT\b/i) === 0 ||
             segments[1].toUpperCase().search(/\bMIN\b/i) === 0 ||
             segments[1].toUpperCase().search(/\bMAX\b/i) === 0 ||
             segments[1].toUpperCase().search(/\bAVG\b/i) === 0 ||
             segments[1].toUpperCase().search(/\bSUM\b/i) === 0
         ) {
-            if (segments.includes("*")) {
-                throw `Invalid SELECT statement. Functions can not be used with the wildcard (*) character.`;
-            }
             const type = segments[1].match(/\w+/)[0].trim().toUpperCase();
             const column = segments[1]
                 .match(/\(.*?\)/)[0]
@@ -988,6 +999,9 @@ class JSQLWorker {
                 .trim();
             query.function = type as SQLFunction;
             query.columns = [this.injectParameter(column, params)];
+            if (segments[1].indexOf("*") !== -1 && query.function !== "COUNT") {
+                throw `Invalid SELECT statement. Only the COUNT function be used with the wildcard (*) character.`;
+            }
         }
         if (query.columns === null) {
             if (segments.length === 1) {
