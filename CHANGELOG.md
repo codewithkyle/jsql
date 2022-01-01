@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   custom `query()` response types ([#20](https://github.com/codewithkyle/jsql/issues/20))
 -   `ORDER BY` support on `UNIQUE` constrained queries
 -   [SQL Functions](https://jsql.codewithkyle.com/clauses-and-operators/sql-functions) now support the `UNIQUE` constraint
+-   `IN` and `!IN` logical operators ([#21](https://github.com/codewithkyle/jsql/issues/21))
 
 ### Optimizations
 

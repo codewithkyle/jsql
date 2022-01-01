@@ -61,7 +61,7 @@
                     const output = await db.query(
                         value,
                         {
-                            cost: 0,
+                            cost: [0, 4],
                         },
                         true
                     );

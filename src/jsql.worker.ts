@@ -2,6 +2,8 @@ import type { Table, Schema, Column, Query, SQLFunction, Condition, Check } from
 import { openDB } from "./lib/idb";
 import Fuse from "fuse.js";
 
+const CONDITIONS = /\=|\=\=|\!\=|\!\=\=|\>|\<|\>\=|\<\=|\!\>\=|\!\<\=|\!\>|\!\<|\bLIKE\b|\bINCLUDES\b|\bEXCLUDES\b|\bIN\b|\!\b\IN\b/gi;
+
 class JSQLWorker {
     private db: any;
     private tables: Array<Table>;
@@ -463,6 +465,16 @@ class JSQLWorker {
                     didPassCheck = true;
                 }
                 break;
+            case "IN":
+                if (Array.isArray(check.value) && check.value.includes(row[check.column])) {
+                    didPassCheck = true;
+                }
+                break;
+            case "!IN":
+                if (Array.isArray(check.value) && !check.value.includes(row[check.column])) {
+                    didPassCheck = true;
+                }
+                break;
             default:
                 break;
         }
@@ -760,10 +772,7 @@ class JSQLWorker {
                     value: null,
                 };
                 statement[i] = statement[i].trim().replace(/\'|\"/g, "");
-                check.type = statement[i]
-                    .match(/\=|\=\=|\!\=|\!\=\=|\>|\<|\>\=|\<\=|\!\>\=|\!\<\=|\!\>|\!\<|\bLIKE\b|\bINCLUDES\b|\bEXCLUDES\b/gi)
-                    .join("")
-                    .trim();
+                check.type = statement[i].match(CONDITIONS).join("").trim();
                 const values = statement[i].split(check.type);
                 check.column = values[0];
                 check.value = values[1];
@@ -776,10 +785,7 @@ class JSQLWorker {
                 value: null,
             };
             statement = statement.trim().replace(/\'|\"/g, "");
-            check.type = statement
-                .match(/\=|\=\=|\!\=|\!\=\=|\>|\<|\>\=|\<\=|\!\>\=|\!\<\=|\!\>|\!\<|\bLIKE\b|\bINCLUDES\b|\bEXCLUDES\b/gi)
-                .join("")
-                .trim();
+            check.type = statement.match(CONDITIONS).join("").trim();
             const values = statement.split(check.type);
             check.column = values[0].trim();
             check.value = values[1].trim();

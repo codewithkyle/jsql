@@ -20,22 +20,7 @@ export type Column = {
 
 export type SQLFunction = "COUNT" | "AVG" | "MIN" | "MAX" | "SUM";
 export type SQLStatement = "SELECT" | "UPDATE" | "DELETE" | "INSERT" | "RESET";
-export type CheckOperation =
-    | "="
-    | "=="
-    | "!="
-    | "!=="
-    | ">"
-    | "<"
-    | ">="
-    | "<="
-    | "!>="
-    | "!<="
-    | "!>"
-    | "!<"
-    | "LIKE"
-    | "INCLUDES"
-    | "EXCLUDES";
+export type CheckOperation = "=" | "==" | "!=" | "!==" | ">" | "<" | ">=" | "<=" | "!>=" | "!<=" | "!>" | "!<" | "LIKE" | "INCLUDES" | "EXCLUDES" | "IN" | "!IN";
 
 export type Check = {
     type: CheckOperation;
@@ -82,11 +67,7 @@ export class Database {
         } | null,
         debug?: boolean
     ): Promise<Array<T>>;
-    public ingest(
-        url: string,
-        table: string,
-        type?: "JSON" | "NDJSON"
-    ): Promise<void>;
+    public ingest(url: string, table: string, type?: "JSON" | "NDJSON"): Promise<void>;
 }
 declare const db: Database;
 export default db;
