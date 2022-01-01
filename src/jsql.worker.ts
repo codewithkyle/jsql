@@ -273,8 +273,8 @@ class JSQLWorker {
                         if (query.function !== null) {
                             output = this.handleSelectFunction(query, output);
                         } else {
-                            if (query.columns.length && query.columns[0] !== "*") {
-                                output = this.filterColumns(query, output);
+                            if (query.columns.length && query.columns[0] !== "*" && !query.uniqueOnly) {
+                                this.filterColumns(query, output);
                             }
                             if (query.order !== null) {
                                 this.sort(query, output);
@@ -299,13 +299,7 @@ class JSQLWorker {
                     default:
                         break;
                 }
-                if (query.uniqueOnly) {
-                    const temp = [];
-                    for (let i = 0; i < output.length; i++) {
-                        temp.push(output[i][query.columns[0]]);
-                    }
-                    output = temp;
-                } else if (query.group !== null) {
+                if (query.group !== null) {
                     // @ts-ignore
                     output = this.buildGroups(output, query.group);
                 }
@@ -337,10 +331,11 @@ class JSQLWorker {
     private getUnique(rows: Array<any>, columns: Array<string>) {
         let output = [];
         const claimedValues = [];
+        const key = columns[0];
         for (let r = 0; r < rows.length; r++) {
-            if (!claimedValues.includes(rows[r][columns[0]])) {
-                claimedValues.push(rows[r][columns[0]]);
-                output.push(rows[r]);
+            if (!claimedValues.includes(rows[r][key])) {
+                claimedValues.push(rows[r][key]);
+                output.push(rows[r][key]);
             }
         }
         return output;
@@ -552,33 +547,37 @@ class JSQLWorker {
         return output;
     }
 
-    private sort(query: Query, rows: Array<any>) {
+    private sort(query: Query, rows: Array<any>): void {
         if (query.order.by === "ASC") {
             rows.sort((a, b) => {
-                const valueA = a?.[query.order.column] ?? 0;
-                const valueB = b?.[query.order.column] ?? 0;
+                const valueA = a?.[query.order.column] ?? a;
+                const valueB = b?.[query.order.column] ?? b;
                 return valueA >= valueB ? 1 : -1;
             });
         } else {
             rows.sort((a, b) => {
-                const valueA = a?.[query.order.column] ?? 0;
-                const valueB = b?.[query.order.column] ?? 0;
+                const valueA = a?.[query.order.column] ?? a;
+                const valueB = b?.[query.order.column] ?? b;
                 return valueA >= valueB ? -1 : 1;
             });
         }
     }
 
-    private filterColumns(query: Query, rows: Array<any>): Array<any> {
-        let modifiedRows = [];
-        for (let j = 0; j < rows.length; j++) {
-            const row = rows[j];
-            const temp = {};
-            for (let i = 0; i < query.columns.length; i++) {
-                temp[query.columns[i]] = row?.[query.columns[i]] ?? null;
-            }
-            modifiedRows.push(temp);
+    private filterColumns(query: Query, rows: Array<any>): void {
+        if (!rows.length) {
+            return;
         }
-        return modifiedRows;
+        const blacklist = [];
+        for (const key in rows[0]) {
+            if (!query.columns.includes(key)) {
+                blacklist.push(key);
+            }
+        }
+        for (let i = 0; i < blacklist.length; i++) {
+            for (let j = 0; j < rows.length; j++) {
+                delete rows[j]?.[blacklist[i]];
+            }
+        }
     }
 
     private buildQueryFromStatement(sql, params = {}): Query {

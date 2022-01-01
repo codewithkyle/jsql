@@ -12,15 +12,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   `query()` method now has a default response type of `Promise<Array<any>>` instead of `Promise<any>`
 -   [SQL Functions](https://jsql.codewithkyle.com/clauses-and-operators/sql-functions) now support the `UNIQUE` constraint
 -   auto incremented `INSERT INTO` bug
+-   improved error logging format: errors now include the SQL query and the parameters object contained within a collapsed console log group
 
 ### Added
 
 -   custom `query()` response types ([#20](https://github.com/codewithkyle/jsql/issues/20))
+-   `ORDER BY` support on `UNIQUE` constrained queries
 
 ### Optimizations
 
--   Select Statements using the `COUNT()` SQL function **without** a `WHERE` clause or `UNIQUE` constraint are now 6x faster because they are performed using the [IDBObjectStore's built in count function](https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore/count)
+-   `SELECT` statements using the `COUNT()` SQL function **without** a `WHERE` clause or `UNIQUE` constraint are now 6x faster after switching to the [IDBObjectStore's built in count function](https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore/count)
 -   updated to [idb@7](https://github.com/jakearchibald/idb/releases/tag/v7.0.0)
+-   reduced memory footprint for non wildcard (`*`) queries
+-   relocated the `UNIQUE` constraint function
 
 [unreleased]: https://github.com/codewithkyle/jsql/compare/v1.1.2...HEAD
 [1.1.2]: https://github.com/codewithkyle/jsql/compare/v1.1.1...v1.1.2
