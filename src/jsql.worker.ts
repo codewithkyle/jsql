@@ -1,8 +1,14 @@
 import type { Table, Schema, Column, Query, SQLFunction, Condition, Check } from "../jsql";
 import { openDB } from "./lib/idb";
 import Fuse from "fuse.js";
+import dayjs from "dayjs";
 
 const CONDITIONS = /\=|\=\=|\!\=|\!\=\=|\>|\<|\>\=|\<\=|\!\>\=|\!\<\=|\!\>|\!\<|\bLIKE\b|\bINCLUDES\b|\bEXCLUDES\b|\bIN\b|\!\b\IN\b/gi;
+
+const uuid: () => string = () => {
+    // @ts-ignore
+    return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) => (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16));
+};
 
 class JSQLWorker {
     private db: any;
@@ -619,7 +625,34 @@ class JSQLWorker {
         }
     }
 
+    private washStatement(sql, params): string {
+        // Replace NOW() functions
+        const nowFunctions: Array<string> = sql.match(/\bNOW\b\(.*?\)/gi) || [];
+        for (let i = 0; i < nowFunctions.length; i++) {
+            const format =
+                nowFunctions[i]
+                    .replace(/\'|\"/g, "")
+                    .trim()
+                    .match(/(?<=\().*(?=\))/g)?.[0] || null;
+            const uid = uuid().replace(/\-/g, "");
+            sql = sql.replace(nowFunctions[i], `$${uid}`);
+            console.log(sql, uid, format);
+            if (format === null) {
+                params[uid] = Date.now();
+            } else if (format === "U") {
+                params[uid] = dayjs().unix();
+            } else if (format === "c") {
+                params[uid] = dayjs().toISOString();
+            } else {
+                params[uid] = dayjs().format(format);
+            }
+        }
+        return sql;
+    }
+
     private buildQueryFromStatement(sql, params = {}): Query {
+        sql = this.washStatement(sql, params);
+        console.log(sql, params);
         const segments: Array<Array<string>> = this.parseSegments(sql);
         let query: Query = {
             uniqueOnly: false,

@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   [SQL Functions](https://jsql.codewithkyle.com/clauses-and-operators/sql-functions) now support the `UNIQUE` constraint
 -   `IN` and `!IN` logical operators ([#21](https://github.com/codewithkyle/jsql/issues/21))
 -   [day.js](https://day.js.org/en/) developer dependency
+-   `NOW()` function ([#11](https://github.com/codewithkyle/jsql/issues/11))
+    -   supports UNIX timestamp with `NOW()`
+    -   supports custom formats with `NOW('YYYY-MM-DD')` [see all formatting options](https://jsql.codewithkyle.com/clauses-and-operators/sql-functions#now)
 
 ### Optimizations
 
