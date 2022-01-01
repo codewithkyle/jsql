@@ -1055,20 +1055,21 @@ class JSQLWorker {
                 throw `Invalid SELECT statement. Only the COUNT function be used with the wildcard (*) character.`;
             }
         }
-        if (query.columns === null) {
-            if (segments.length === 1) {
-                throw `Invalid SELECT statement syntax.`;
-            }
-            query.columns = [];
-            for (let i = 1; i < segments.length; i++) {
-                const cols = segments[i].split(",");
-                for (let j = 0; j < cols.length; j++) {
-                    const col = cols[j].trim();
-                    if (col.length) {
-                        query.columns.push(this.injectParameter(col, params));
-                    }
+        if (segments.length === 1) {
+            throw `Invalid SELECT statement syntax.`;
+        }
+        query.columns = [];
+        for (let i = 1; i < segments.length; i++) {
+            const cols = segments[i].split(",");
+            for (let j = 0; j < cols.length; j++) {
+                const col = cols[j].trim();
+                if (col.length) {
+                    query.columns.push(this.injectParameter(col, params));
                 }
             }
+        }
+        if (query.function !== null && query.columns.length > 1) {
+            throw `Invalid SELECT statement. You cannot use other columns alongside COUNT, MIN, MAX, AVG, or SUM.`;
         }
         return query;
     }
