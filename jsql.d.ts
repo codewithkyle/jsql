@@ -32,6 +32,12 @@ export type Condition = {
     checks: Array<Check | Array<Check>>;
 };
 
+export type FormatType = "DATE" | "JSON" | "INT" | "BOOL" | "FLOAT";
+export type Format = {
+    type: FormatType;
+    args?: any;
+};
+
 export type Query = {
     uniqueOnly: boolean;
     type: SQLStatement;
@@ -49,6 +55,9 @@ export type Query = {
     values: Array<any>;
     set: {
         [column: string]: any;
+    };
+    columnFormats: {
+        [column: string]: Format;
     };
 };
 

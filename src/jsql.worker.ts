@@ -1,4 +1,4 @@
-import type { Table, Schema, Column, Query, SQLFunction, Condition, Check } from "../jsql";
+import type { Table, Schema, Column, Query, SQLFunction, Condition, Check, Format, FormatType } from "../jsql";
 import { openDB } from "./lib/idb";
 import Fuse from "fuse.js";
 import dayjs from "dayjs";
@@ -310,6 +310,9 @@ class JSQLWorker {
                         } else {
                             if (query.columns.length && query.columns[0] !== "*" && !query.uniqueOnly) {
                                 this.filterColumns(query, output);
+                            }
+                            if (query.columns.length && query.columnFormats !== null) {
+                                this.formatColumns(query, output);
                             }
                             if (query.order !== null) {
                                 this.sort(query, output);
@@ -625,6 +628,68 @@ class JSQLWorker {
         }
     }
 
+    private formatColumns(query: Query, rows: Array<any>): void {
+        if (!rows.length) {
+            return;
+        }
+        for (let i = 0; i < rows.length; i++) {
+            for (const column in query.columnFormats) {
+                switch (query.columnFormats[column].type) {
+                    case "BOOL":
+                        switch (typeof rows[i][column]) {
+                            case "string":
+                                if (rows[i][column].toLowerCase() === "true" || rows[i][column] === "1") {
+                                    rows[i][column] = true;
+                                } else {
+                                    rows[i][column] = false;
+                                }
+                                break;
+                            case "number":
+                                rows[i][column] = rows[i][column] === 1 ? true : false;
+                                break;
+                            case "boolean":
+                                break;
+                            default:
+                                rows[i][column] = false;
+                                break;
+                        }
+                        break;
+                    case "DATE":
+                        let dateValue;
+                        const dateFormat = query.columnFormats[column]?.args ?? "u";
+                        if (dateFormat === "U") {
+                            dateValue = dayjs(rows[i][column]).unix();
+                        } else if (dateFormat === "u") {
+                            dateValue = dayjs(rows[i][column]).valueOf();
+                        } else if (dateFormat === "c") {
+                            dateValue = dayjs(rows[i][column]).toISOString();
+                        } else {
+                            dateValue = dayjs(rows[i][column]).format(query.columnFormats[column].args);
+                        }
+                        rows[i][column] = dateValue;
+                        break;
+                    case "FLOAT":
+                        if (typeof rows[i][column] !== "number") {
+                            rows[i][column] = parseFloat(rows[i][column]);
+                        }
+                        break;
+                    case "INT":
+                        if (typeof rows[i][column] !== "number") {
+                            rows[i][column] = parseInt(rows[i][column]);
+                        }
+                        break;
+                    case "JSON":
+                        if (typeof rows[i][column] !== "object") {
+                            rows[i][column] = JSON.parse(rows[i][column]);
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+    }
+
     private washStatement(sql, params): string {
         // Replace NOW() functions
         const nowFunctions: Array<string> = sql.match(/\bNOW\b\(.*?\)/gi) || [];
@@ -637,7 +702,7 @@ class JSQLWorker {
             const uid = uuid().replace(/\-/g, "");
             sql = sql.replace(nowFunctions[i], `$${uid}`);
             console.log(sql, uid, format);
-            if (format === null) {
+            if (format === null || format === "u") {
                 params[uid] = Date.now();
             } else if (format === "U") {
                 params[uid] = dayjs().unix();
@@ -652,7 +717,6 @@ class JSQLWorker {
 
     private buildQueryFromStatement(sql, params = {}): Query {
         sql = this.washStatement(sql, params);
-        console.log(sql, params);
         const segments: Array<Array<string>> = this.parseSegments(sql);
         let query: Query = {
             uniqueOnly: false,
@@ -667,6 +731,7 @@ class JSQLWorker {
             order: null,
             set: null,
             group: null,
+            columnFormats: null,
         };
         for (let i = segments.length - 1; i >= 0; i--) {
             const segment = segments[i].join(" ");
@@ -1038,11 +1103,11 @@ class JSQLWorker {
         }
 
         if (
-            segments[1].toUpperCase().search(/\bCOUNT\b/i) === 0 ||
-            segments[1].toUpperCase().search(/\bMIN\b/i) === 0 ||
-            segments[1].toUpperCase().search(/\bMAX\b/i) === 0 ||
-            segments[1].toUpperCase().search(/\bAVG\b/i) === 0 ||
-            segments[1].toUpperCase().search(/\bSUM\b/i) === 0
+            segments[1].search(/\bCOUNT\b/i) === 0 ||
+            segments[1].search(/\bMIN\b/i) === 0 ||
+            segments[1].search(/\bMAX\b/i) === 0 ||
+            segments[1].search(/\bAVG\b/i) === 0 ||
+            segments[1].search(/\bSUM\b/i) === 0
         ) {
             const type = segments[1].match(/\w+/)[0].trim().toUpperCase();
             const column = segments[1]
@@ -1054,16 +1119,56 @@ class JSQLWorker {
             if (segments[1].indexOf("*") !== -1 && query.function !== "COUNT") {
                 throw `Invalid SELECT statement. Only the COUNT function be used with the wildcard (*) character.`;
             }
+            segments.splice(1, 1);
         }
-        if (segments.length === 1) {
+        segments.splice(0, 1);
+        if (segments.length === 0) {
             throw `Invalid SELECT statement syntax.`;
         }
+
+        const statement = segments
+            .join(" ")
+            .replace(/(?<=\(.*?)\s+(?=.*?\))/g, "")
+            .replace(/(?<=\(.*?)\,(?=.*?\))/g, "|")
+            .trim();
+        segments = statement.split(",");
+
         query.columns = [];
-        for (let i = 1; i < segments.length; i++) {
-            const cols = segments[i].split(",");
-            for (let j = 0; j < cols.length; j++) {
-                const col = cols[j].trim();
-                if (col.length) {
+        for (let i = 0; i < segments.length; i++) {
+            const col = segments[i].trim();
+            if (col.length) {
+                if (
+                    col.toUpperCase().search(/\bDATE\b/i) === 0 ||
+                    col.toUpperCase().search(/\bJSON\b/i) === 0 ||
+                    col.toUpperCase().search(/\bINT\b/i) === 0 ||
+                    col.toUpperCase().search(/\bBOOL\b/i) === 0 ||
+                    col.toUpperCase().search(/\bFLOAT\b/i) === 0
+                ) {
+                    const type = col.match(/\w+/)[0].trim().toUpperCase() as FormatType;
+                    const column = col
+                        .match(/\(.*?(\)|\|)/)[0]
+                        .replace(/\(|\)|\|/g, "")
+                        .trim();
+                    let args = null;
+                    if (type === "DATE") {
+                        args =
+                            col
+                                .match(/\|.*?\)/)?.[0]
+                                ?.replace(/\(|\)|\||\'|\"/g, "")
+                                ?.trim() || null;
+                        if (args === null) {
+                            throw `Invalid DATE function syntax. You must provide a format string.`;
+                        }
+                    }
+                    if (query.columnFormats === null) {
+                        query.columnFormats = {};
+                    }
+                    query.columns.push(this.injectParameter(column, params));
+                    query.columnFormats[column] = {
+                        type: type,
+                        args: args,
+                    };
+                } else {
                     query.columns.push(this.injectParameter(col, params));
                 }
             }

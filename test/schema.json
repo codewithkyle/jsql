@@ -1,73 +1,71 @@
 {
     "name": "demo",
-	"version": 1,
-	"tables": [
-		{
-			"name": "cards",
-			"keyPath": "UID",
-			"columns": [
-				{
-					"key": "UID",
-					"unique": true
-				},
-				{
-					"key": "Name"
-				},
-				{
-					"key": "Slug"
-				},
-				{
-					"key": "Layout"
-				},
-				{
-					"key": "Rarity"
-				},
-				{
-					"key": "Type"
-				},
-				{
-					"key": "Text"
-				},
-				{
-					"key": "FlavorText"
-				},
-				{
-					"key": "Vitality"
-				},
-				{
-					"key": "FaceNames"
-				},
-				{
-					"key": "ManaCosts"
-				},
-				{
-					"key": "TotalManaCost"
-				},
-				{
-					"key": "Subtypes"
-				},
-				{
-					"key": "Colors"
-				},
-				{
-					"key": "Keywords"
-				},
-				{
-					"key": "Front"
-				},
-				{
-					"key": "Back"
-				}
-			]
-		},
+    "version": 1,
+    "tables": [
+        {
+            "name": "cards",
+            "keyPath": "UID",
+            "columns": [
+                {
+                    "key": "UID",
+                    "unique": true
+                },
+                {
+                    "key": "Name"
+                },
+                {
+                    "key": "Slug"
+                },
+                {
+                    "key": "Layout"
+                },
+                {
+                    "key": "Rarity"
+                },
+                {
+                    "key": "Type"
+                },
+                {
+                    "key": "Text"
+                },
+                {
+                    "key": "FlavorText"
+                },
+                {
+                    "key": "Vitality"
+                },
+                {
+                    "key": "FaceNames"
+                },
+                {
+                    "key": "ManaCosts"
+                },
+                {
+                    "key": "TotalManaCost"
+                },
+                {
+                    "key": "Subtypes"
+                },
+                {
+                    "key": "Colors"
+                },
+                {
+                    "key": "Keywords"
+                },
+                {
+                    "key": "Front"
+                },
+                {
+                    "key": "Back"
+                }
+            ]
+        },
         {
             "name": "test",
-			"keyPath": "id",
             "autoIncrement": true,
-			"columns": [
+            "columns": [
                 {
-                    "key": "id",
-                    "unique": true
+                    "key": "createdAt"
                 },
                 {
                     "key": "a"
@@ -149,5 +147,5 @@
                 }
             ]
         }
-	]
+    ]
 }
