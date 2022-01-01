@@ -202,13 +202,16 @@ class JSQLWorker {
 
             // Query optimizer
             if (
-                (!query.uniqueOnly && query.type === "SELECT" && query.function === "COUNT" && query.where === null) ||
-                (query.where !== null &&
-                    query.where.length === 1 &&
-                    query.where[0].checks.length === 1 &&
-                    !Array.isArray(query.where[0].checks[0]) &&
-                    query.where[0].checks[0].type === "==" &&
-                    !query.uniqueOnly)
+                !query.uniqueOnly &&
+                query.type === "SELECT" &&
+                query.function === "COUNT" &&
+                (query.where === null ||
+                    (query.where !== null &&
+                        query.where.length === 1 &&
+                        query.where[0].checks.length === 1 &&
+                        !Array.isArray(query.where[0].checks[0]) &&
+                        query.where[0].checks[0].type === "==" &&
+                        !query.uniqueOnly))
             ) {
                 // Optimize IDB query when we are only looking to count rows
                 if (query.where === null) {
@@ -244,6 +247,12 @@ class JSQLWorker {
                     output = await this.db.getAllKeysFromIndex(query.table, query.columns[0]);
                     if (query.order !== null) {
                         this.sort(query, output);
+                    }
+                    if (query.columnFormats !== null) {
+                        const column = Object.keys(query.columnFormats)[0];
+                        for (let i = 0; i < output.length; i++) {
+                            output[i] = this.formatValue(query.columnFormats[column].type, output[i], query.columnFormats[column].args);
+                        }
                     }
                 }
             }
@@ -628,64 +637,68 @@ class JSQLWorker {
         }
     }
 
+    private formatValue(type: FormatType, value: any, args: any = null): any {
+        let out = value;
+        switch (type) {
+            case "BOOL":
+                switch (typeof value) {
+                    case "string":
+                        if (value.toLowerCase() === "true" || value === "1") {
+                            out = true;
+                        } else {
+                            out = false;
+                        }
+                        break;
+                    case "number":
+                        out = value === 1 ? true : false;
+                        break;
+                    case "boolean":
+                        break;
+                    default:
+                        out = false;
+                        break;
+                }
+                break;
+            case "DATE":
+                const dateFormat = args || "u";
+                if (dateFormat === "U") {
+                    out = dayjs(value).unix();
+                } else if (dateFormat === "u") {
+                    out = dayjs(value).valueOf();
+                } else if (dateFormat === "c") {
+                    out = dayjs(value).toISOString();
+                } else {
+                    out = dayjs(value).format(args);
+                }
+                break;
+            case "FLOAT":
+                if (typeof value !== "number") {
+                    out = parseFloat(value);
+                }
+                break;
+            case "INT":
+                if (typeof value !== "number") {
+                    out = parseInt(value);
+                }
+                break;
+            case "JSON":
+                if (typeof value !== "object") {
+                    out = JSON.parse(value);
+                }
+                break;
+            default:
+                break;
+        }
+        return out;
+    }
+
     private formatColumns(query: Query, rows: Array<any>): void {
         if (!rows.length) {
             return;
         }
         for (let i = 0; i < rows.length; i++) {
             for (const column in query.columnFormats) {
-                switch (query.columnFormats[column].type) {
-                    case "BOOL":
-                        switch (typeof rows[i][column]) {
-                            case "string":
-                                if (rows[i][column].toLowerCase() === "true" || rows[i][column] === "1") {
-                                    rows[i][column] = true;
-                                } else {
-                                    rows[i][column] = false;
-                                }
-                                break;
-                            case "number":
-                                rows[i][column] = rows[i][column] === 1 ? true : false;
-                                break;
-                            case "boolean":
-                                break;
-                            default:
-                                rows[i][column] = false;
-                                break;
-                        }
-                        break;
-                    case "DATE":
-                        let dateValue;
-                        const dateFormat = query.columnFormats[column]?.args ?? "u";
-                        if (dateFormat === "U") {
-                            dateValue = dayjs(rows[i][column]).unix();
-                        } else if (dateFormat === "u") {
-                            dateValue = dayjs(rows[i][column]).valueOf();
-                        } else if (dateFormat === "c") {
-                            dateValue = dayjs(rows[i][column]).toISOString();
-                        } else {
-                            dateValue = dayjs(rows[i][column]).format(query.columnFormats[column].args);
-                        }
-                        rows[i][column] = dateValue;
-                        break;
-                    case "FLOAT":
-                        if (typeof rows[i][column] !== "number") {
-                            rows[i][column] = parseFloat(rows[i][column]);
-                        }
-                        break;
-                    case "INT":
-                        if (typeof rows[i][column] !== "number") {
-                            rows[i][column] = parseInt(rows[i][column]);
-                        }
-                        break;
-                    case "JSON":
-                        if (typeof rows[i][column] !== "object") {
-                            rows[i][column] = JSON.parse(rows[i][column]);
-                        }
-                        break;
-                    default:
-                        break;
-                }
+                rows[i][column] = this.formatValue(query.columnFormats[column].type, rows[i][column], query.columnFormats[column].args);
             }
         }
     }

@@ -44,7 +44,7 @@
                             createdAt: Date.now(),
                         };
                         for (const letter of letters) {
-                            value[letter] = `${i}`;
+                            value[letter] = i;
                         }
                         db.query(`INSERT INTO test VALUES ($value)`, {
                             value: value,
@@ -63,7 +63,7 @@
                     const output = await db.query(
                         value,
                         {
-                            cost: [0, 4],
+                            cost: 4,
                         },
                         true
                     );
