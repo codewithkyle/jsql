@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   `NOW()` function ([#11](https://github.com/codewithkyle/jsql/issues/11))
     -   supports UNIX timestamp with `NOW()`
     -   supports custom formats with `NOW('YYYY-MM-DD')` [see all formatting options](https://jsql.codewithkyle.com/clauses-and-operators/sql-functions#now)
+-   `DATE()` function ([#11](https://github.com/codewithkyle/jsql/issues/11))
+    -   supports custom formatting [see all formatting options](https://jsql.codewithkyle.com/clauses-and-operators/sql-functions#date)
+-   `INT()` function
+-   `FLOAT()` function
+-   `BOOL()` function
+-   `JSON()` function
 
 ### Optimizations
 
