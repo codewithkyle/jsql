@@ -725,6 +725,35 @@ class JSQLWorker {
                 params[uid] = dayjs().format(format);
             }
         }
+
+        // Replace DATE() functions
+        const dateFunctions = sql.match(/\bDATE\b\(.*?\)/gi) || [];
+        for (let i = 0; i < dateFunctions.length; i++) {
+            const cleanValue = dateFunctions[i].replace(/\(|\)/g, "|").replace(/\'|\"/g, "");
+            sql = sql.replace(dateFunctions[i], cleanValue);
+        }
+
+        // Replace INT() functions
+        const intFunctions = sql.match(/\bINT\b\(.*?\)/gi) || [];
+        for (let i = 0; i < intFunctions.length; i++) {
+            const cleanValue = intFunctions[i].replace(/\(|\)/g, "|");
+            sql = sql.replace(intFunctions[i], cleanValue);
+        }
+
+        // Repalce FLOAT() functions
+        const floatFunctions = sql.match(/\bFLOAT\b\(.*?\)/gi) || [];
+        for (let i = 0; i < floatFunctions.length; i++) {
+            const cleanValue = floatFunctions[i].replace(/\(|\)/g, "|");
+            sql = sql.replace(floatFunctions[i], cleanValue);
+        }
+
+        // Replace BOOL() functions
+        const boolFunctions = sql.match(/\bBOOL\b\(.*?\)/gi) || [];
+        for (let i = 0; i < boolFunctions.length; i++) {
+            const cleanValue = boolFunctions[i].replace(/\(|\)/g, "|");
+            sql = sql.replace(boolFunctions[i], cleanValue);
+        }
+
         return sql;
     }
 
@@ -1141,8 +1170,8 @@ class JSQLWorker {
 
         const statement = segments
             .join(" ")
-            .replace(/(?<=\(.*?)\s+(?=.*?\))/g, "")
-            .replace(/(?<=\(.*?)\,(?=.*?\))/g, "|")
+            .replace(/(?<=\|.*?)\s+(?=.*?\|)/g, "")
+            .replace(/(?<=\|.*?)\,(?=.*?\|)/g, ">")
             .trim();
         segments = statement.split(",");
 
@@ -1159,15 +1188,15 @@ class JSQLWorker {
                 ) {
                     const type = col.match(/\w+/)[0].trim().toUpperCase() as FormatType;
                     const column = col
-                        .match(/\(.*?(\)|\|)/)[0]
-                        .replace(/\(|\)|\|/g, "")
+                        .match(/\|.*?(\||\>)/)[0]
+                        .replace(/\||\>/g, "")
                         .trim();
                     let args = null;
                     if (type === "DATE") {
                         args =
                             col
-                                .match(/\|.*?\)/)?.[0]
-                                ?.replace(/\(|\)|\||\'|\"/g, "")
+                                .match(/\>.*?\|/)?.[0]
+                                ?.replace(/\||\+|\>|\'|\"/g, "")
                                 ?.trim() || null;
                         if (args === null) {
                             throw `Invalid DATE function syntax. You must provide a format string.`;
