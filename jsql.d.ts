@@ -26,6 +26,7 @@ export type Check = {
     type: CheckOperation;
     column: string;
     value: any;
+    format: Format | null;
 };
 export type Condition = {
     requireAll: boolean;

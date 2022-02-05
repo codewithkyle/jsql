@@ -237,7 +237,8 @@ class JSQLWorker {
                     query.where.length === 1 &&
                     query.where[0].checks.length === 1 &&
                     !Array.isArray(query.where[0].checks[0]) &&
-                    query.where[0].checks[0].type === "=="
+                    query.where[0].checks[0].type === "==" &&
+                    query.where[0].checks[0].format === null
                 ) {
                     skipWhere = true;
                     optimized = true;
@@ -390,6 +391,10 @@ class JSQLWorker {
 
     private check(check: Check, row: any): boolean {
         let didPassCheck = false;
+        let value = row[check.column];
+        if (check.format !== null) {
+            value = this.formatValue(check.format.type, value, check.format?.args);
+        }
         switch (check.type) {
             case "LIKE":
                 const fuse = new Fuse([row], {
@@ -413,62 +418,62 @@ class JSQLWorker {
                 }
                 break;
             case ">=":
-                if (row[check.column] >= check.value) {
+                if (value >= check.value) {
                     didPassCheck = true;
                 }
                 break;
             case ">":
-                if (row[check.column] > check.value) {
+                if (value > check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "<=":
-                if (row[check.column] <= check.value) {
+                if (value <= check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "<":
-                if (row[check.column] < check.value) {
+                if (value < check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "!>=":
-                if (row[check.column] < check.value) {
+                if (value < check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "!>":
-                if (row[check.column] <= check.value) {
+                if (value <= check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "!==":
-                if (row[check.column] !== check.value) {
+                if (value !== check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "!=":
-                if (row[check.column] != check.value) {
+                if (value != check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "!<=":
-                if (row[check.column] > check.value) {
+                if (value > check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "!<":
-                if (row[check.column] >= check.value) {
+                if (value >= check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "==":
-                if (row[check.column] === check.value) {
+                if (value === check.value) {
                     didPassCheck = true;
                 }
                 break;
             case "=":
-                if (row[check.column] == check.value) {
+                if (value == check.value) {
                     didPassCheck = true;
                 }
                 break;
@@ -731,7 +736,7 @@ class JSQLWorker {
         // Replace DATE() functions
         const dateFunctions = sql.match(/\bDATE\b\(.*?\)/gi) || [];
         for (let i = 0; i < dateFunctions.length; i++) {
-            const cleanValue = dateFunctions[i].replace(/\(|\)/g, "~").replace(/\'|\"/g, "");
+            const cleanValue = dateFunctions[i].replace(/\(|\)/g, "~").replace(/\'|\"/g, "").replace(/\s+/g, "").replace(/\,/g, ">");
             sql = sql.replace(dateFunctions[i], cleanValue);
         }
 
@@ -910,6 +915,43 @@ class JSQLWorker {
         return query;
     }
 
+    private buildConditionCheckFormat(statement: string): {
+        format: Format | null;
+        statement: string;
+    } {
+        let format = null;
+        if (statement.indexOf("~") !== -1) {
+            const type = statement
+                .match(/\bDATE\b|\bBOOL\b|\bINT\b|\bJSON\b/i)[0]
+                .trim()
+                .toUpperCase() as FormatType;
+            const column = statement
+                .match(/\~.*?(\~|\>)/)[0]
+                .replace(/\~|\>/g, "")
+                .trim();
+            let args = null;
+            if (type === "DATE") {
+                args =
+                    statement
+                        .match(/\>.*?\~/)?.[0]
+                        ?.replace(/\~|\+|\>|\'|\"/g, "")
+                        ?.trim() || null;
+                if (args === null) {
+                    throw `Invalid DATE function syntax. You must provide a format string.`;
+                }
+            }
+            statement = statement.replace(/(\bDATE\b|\bBOOL\b|\bINT\b|\bJSON\b).*\~/i, column);
+            format = {
+                type: type,
+                args: args,
+            };
+        }
+        return {
+            format: format,
+            statement: statement,
+        };
+    }
+
     private buildConditionCheck(statement): Check | Array<Check> {
         let result;
         if (Array.isArray(statement)) {
@@ -919,8 +961,12 @@ class JSQLWorker {
                     column: "",
                     type: "=",
                     value: null,
+                    format: null,
                 };
                 statement[i] = statement[i].trim().replace(/\'|\"/g, "");
+                const { format, statement: s } = this.buildConditionCheckFormat(statement[i]);
+                statement[i] = s;
+                check.format = format;
                 check.type = statement[i].match(CONDITIONS).join("").trim();
                 const values = statement[i].split(check.type);
                 check.column = values[0];
@@ -932,8 +978,12 @@ class JSQLWorker {
                 column: "",
                 type: "=",
                 value: null,
+                format: null,
             };
             statement = statement.trim().replace(/\'|\"/g, "");
+            const { format, statement: s } = this.buildConditionCheckFormat(statement);
+            statement = s;
+            check.format = format;
             check.type = statement.match(CONDITIONS).join("").trim();
             const values = statement.split(check.type);
             check.column = values[0].trim();
@@ -1164,7 +1214,6 @@ class JSQLWorker {
         const statement = segments
             .join(" ")
             .replace(/(?<=\~.*?)\s+(?=.*?\~)/g, "")
-            .replace(/(?<=\~.*?)\,(?=.*?\~)/g, ">")
             .trim();
         segments = statement.split(",");
 
@@ -1204,7 +1253,6 @@ class JSQLWorker {
                         seg.toUpperCase().search(/\bFLOAT\b/i) === 0
                     ) {
                         const type = seg.match(/\w+/)[0].trim().toUpperCase() as FormatType;
-                        console.log(seg);
                         const column = seg
                             .match(/\~.*?(\~|\>)/)[0]
                             .replace(/\~|\>/g, "")
