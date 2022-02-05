@@ -186,7 +186,6 @@ class JSQLWorker {
     }
 
     private async performQuery(queries: Array<Query>, debug: boolean): Promise<Array<any>> {
-        console.log(queries);
         let rows = [];
         for (let i = 0; i < queries.length; i++) {
             const query = queries[i];
@@ -721,7 +720,6 @@ class JSQLWorker {
                     .match(/(?<=\().*(?=\))/g)?.[0] || null;
             const uid = uuid().replace(/\-/g, "");
             sql = sql.replace(nowFunctions[i], `$${uid}`);
-            console.log(sql, uid, format);
             if (format === null || format === "u") {
                 params[uid] = Date.now();
             } else if (format === "U") {

@@ -1,4 +1,4 @@
-import type { Query, Settings } from "../jsql";
+import type { Query, Settings, StreamArgs } from "../jsql";
 
 class JSQLManager {
     private queue: Array<any>;
@@ -202,7 +202,7 @@ class JSQLManager {
         }
     }
 
-    private ingestAsNDJSON(url: string, table: string): Promise<void> {
+    private ingestAsNDJSON(url: string, table: string, args: StreamArgs = {}): Promise<void> {
         return new Promise(async (resolve, reject) => {
             const workerURL = await this.getWorkerURL(this.settings.streamWorker);
             const worker = new Worker(workerURL);
@@ -233,6 +233,7 @@ class JSQLManager {
                 };
                 worker.postMessage({
                     url: url,
+                    args: args,
                 });
             } catch (e) {
                 worker.terminate();
@@ -241,13 +242,21 @@ class JSQLManager {
         });
     }
 
-    private async ingestAsJSON(url: string, table: string) {
+    private async ingestAsJSON(url: string, table: string, args: StreamArgs = {}) {
+        const requestArgs = Object.assign(
+            {
+                method: "GET",
+                credentials: "same-origin",
+                headers: {
+                    Accept: "application/json",
+                },
+            },
+            args
+        );
         const request = await fetch(url, {
-            method: "GET",
-            headers: new Headers({
-                Accept: "application/json",
-            }),
-            credentials: "include",
+            method: requestArgs.method,
+            headers: new Headers(requestArgs.headers),
+            credentials: requestArgs.credentials,
         });
         if (request.ok) {
             const response = await request.json();

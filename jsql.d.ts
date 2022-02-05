@@ -1,3 +1,11 @@
+export interface StreamArgs {
+    method?: string;
+    headers?: {
+        [header: string]: string;
+    };
+    credentials?: "include" | "omit" | "same-origin";
+}
+
 export type Schema = {
     name: string;
     version: number;

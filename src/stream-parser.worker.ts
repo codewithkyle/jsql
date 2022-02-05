@@ -49,13 +49,21 @@ async function readStream(stream) {
         done = await processText(nextChunk);
     }
 }
-async function fetchData(url) {
+async function fetchData(url, args) {
+    const requestArgs = Object.assign(
+        {
+            method: "GET",
+            credentials: "same-origin",
+            headers: {
+                Accept: "application/x-ndjson",
+            },
+        },
+        args
+    );
     const response = await fetch(url, {
-        method: "GET",
-        credentials: "include",
-        headers: new Headers({
-            Accept: "application/x-ndjson",
-        }),
+        method: requestArgs.method,
+        credentials: requestArgs.credentials,
+        headers: new Headers(requestArgs.headers),
     });
     if (response.ok) {
         if (response.status === 204) {
@@ -81,7 +89,7 @@ async function fetchData(url) {
     }
 }
 self.onmessage = (e) => {
-    const { url, uid } = e.data;
+    const { url, uid, args } = e.data;
     workerUid = uid;
-    fetchData(url);
+    fetchData(url, args);
 };

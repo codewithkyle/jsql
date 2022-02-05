@@ -12,7 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   `query()` method now has a default response type of `Promise<Array<any>>` instead of `Promise<any>`
 -   auto incremented `INSERT INTO` bug
 -   improved error logging format: errors now include the SQL query and the parameters object contained within a collapsed console log group
--   default CDN URLs are now version locked to both major and minor versions
+-   default CDN URLs are now version locked to both major and minor versions [#27](https://github.com/codewithkyle/jsql/issues/27)
+-   `204 No Content` stream response [#25](https://github.com/codewithkyle/jsql/issues/25)
+-   developers can control the stream request `fetch()` options [#26](https://github.com/codewithkyle/jsql/issues/26)
 
 ### Added
 
