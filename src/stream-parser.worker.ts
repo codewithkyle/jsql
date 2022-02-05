@@ -58,12 +58,19 @@ async function fetchData(url) {
         }),
     });
     if (response.ok) {
-        await readStream(response.body);
-        // @ts-ignore
-        self.postMessage({
-            type: "done",
-            uid: workerUid,
-        });
+        if (response.status === 204) {
+            self.postMessage({
+                type: "done",
+                uid: workerUid,
+            });
+        } else {
+            await readStream(response.body);
+            // @ts-ignore
+            self.postMessage({
+                type: "done",
+                uid: workerUid,
+            });
+        }
     } else {
         console.error(`${response.status}: ${response.statusText}`);
         // @ts-ignore
