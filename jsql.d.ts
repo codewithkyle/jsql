@@ -41,7 +41,11 @@ export type Format = {
 export type Query = {
     uniqueOnly: boolean;
     type: SQLStatement;
-    function: SQLFunction;
+    functions: Array<{
+        column: string;
+        key: string;
+        function: SQLFunction;
+    }>;
     table: string;
     columns: Array<string>;
     where: Array<Condition>;

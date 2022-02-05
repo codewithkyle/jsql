@@ -186,6 +186,7 @@ class JSQLWorker {
     }
 
     private async performQuery(queries: Array<Query>, debug: boolean): Promise<Array<any>> {
+        console.log(queries);
         let rows = [];
         for (let i = 0; i < queries.length; i++) {
             const query = queries[i];
@@ -204,7 +205,8 @@ class JSQLWorker {
             if (
                 !query.uniqueOnly &&
                 query.type === "SELECT" &&
-                query.function === "COUNT" &&
+                query.functions.length === 1 &&
+                query.functions[0].function === "COUNT" &&
                 (query.where === null ||
                     (query.where !== null &&
                         query.where.length === 1 &&
@@ -217,8 +219,8 @@ class JSQLWorker {
                 if (query.where === null) {
                     bypass = true;
                     optimized = true;
-                    if (query.columns?.[0] !== "*") {
-                        output = await this.db.countFromIndex(query.table, query.columns[0]);
+                    if (query.functions[0].column !== "*") {
+                        output = await this.db.countFromIndex(query.table, query.functions[0].column);
                     } else {
                         output = await this.db.count(query.table);
                     }
@@ -228,7 +230,7 @@ class JSQLWorker {
                     // @ts-expect-error
                     output = await this.db.countFromIndex(query.table, query.where[0].checks[0].column, query.where[0].checks[0].value);
                 }
-            } else if (query.type !== "INSERT" && query.table !== "*") {
+            } else if (query.type === "SELECT") {
                 // Optimize IDB query when we are only looking for 1 value from 1 column
                 if (
                     query.where !== null &&
@@ -240,20 +242,6 @@ class JSQLWorker {
                     skipWhere = true;
                     optimized = true;
                     output = await this.db.getAllFromIndex(query.table, query.where[0].checks[0].column, query.where[0].checks[0].value);
-                } else if (query.where === null && query.columns.length === 1 && query.uniqueOnly && !query.function) {
-                    // Optimize IDB query when we are only looking for values from 1 column
-                    optimized = true;
-                    bypass = true;
-                    output = await this.db.getAllKeysFromIndex(query.table, query.columns[0]);
-                    if (query.order !== null) {
-                        this.sort(query, output);
-                    }
-                    if (query.columnFormats !== null) {
-                        const column = Object.keys(query.columnFormats)[0];
-                        for (let i = 0; i < output.length; i++) {
-                            output[i] = this.formatValue(query.columnFormats[column].type, output[i], query.columnFormats[column].args);
-                        }
-                    }
                 }
             }
 
@@ -314,7 +302,7 @@ class JSQLWorker {
                         if (query.uniqueOnly) {
                             output = this.getUnique(output, query.columns);
                         }
-                        if (query.function !== null) {
+                        if (query.functions.length) {
                             output = this.handleSelectFunction(query, output);
                         } else {
                             if (query.columns.length && query.columns[0] !== "*" && !query.uniqueOnly) {
@@ -330,6 +318,7 @@ class JSQLWorker {
                                 output = output.splice(query.offset, query.limit);
                             }
                         }
+                        // TODO: alias columns
                         break;
                     case "INSERT":
                         for (const row of query.values) {
@@ -544,64 +533,77 @@ class JSQLWorker {
     }
 
     private handleSelectFunction(query: Query, rows: Array<any>) {
-        let output;
-        switch (query.function) {
-            case "MIN":
-                let min;
-                for (let i = 0; i < rows.length; i++) {
-                    let value = rows[i]?.[query.columns[0]] ?? rows[i];
-                    if (i === 0) {
-                        min = value;
-                    } else {
-                        if (value < min) {
-                            min = value;
+        let output = {};
+        for (let f = 0; f < query.functions.length; f++) {
+            const column = query.functions[f].key;
+            const outColumn = query.functions[f].column;
+            const func = query.functions[f].function;
+            let total = 0;
+            switch (func) {
+                case "MIN":
+                    let min = null;
+                    for (let i = 0; i < rows.length; i++) {
+                        if (rows[i]?.[column]) {
+                            let value = rows[i][column];
+                            if (i === 0) {
+                                min = value;
+                            } else {
+                                if (value < min) {
+                                    min = value;
+                                }
+                            }
                         }
                     }
-                }
-                output = min;
-                break;
-            case "MAX":
-                let max;
-                for (let i = 0; i < rows.length; i++) {
-                    let value = rows[i]?.[query.columns[0]] ?? rows[i];
-                    if (i === 0) {
-                        max = value;
-                    } else {
-                        if (value > max) {
-                            max = value;
+                    output[outColumn] = min;
+                    break;
+                case "MAX":
+                    let max = null;
+                    for (let i = 0; i < rows.length; i++) {
+                        if (rows[i]?.[column]) {
+                            let value = rows[i][column];
+                            if (i === 0) {
+                                max = value;
+                            } else {
+                                if (value > max) {
+                                    max = value;
+                                }
+                            }
                         }
                     }
-                }
-                output = max;
-                break;
-            case "SUM":
-                output = 0;
-                for (let i = 0; i < rows.length; i++) {
-                    let value = rows[i]?.[query.columns[0]] ?? rows[i];
-                    if (isNaN(value) || !isFinite(value)) {
-                        value = 0;
+                    output[outColumn] = max;
+                    break;
+                case "SUM":
+                    for (let i = 0; i < rows.length; i++) {
+                        if (rows[i]?.[column]) {
+                            let value = rows[i][column];
+                            if (isNaN(value) || !isFinite(value)) {
+                                value = 0;
+                            }
+                            total += value;
+                        }
                     }
-                    output += value;
-                }
-                break;
-            case "AVG":
-                let total = 0;
-                for (let i = 0; i < rows.length; i++) {
-                    let value = rows[i]?.[query.columns[0]] ?? rows[i];
-                    if (isNaN(value) || !isFinite(value)) {
-                        value = 0;
+                    output[outColumn] = total;
+                    break;
+                case "AVG":
+                    for (let i = 0; i < rows.length; i++) {
+                        if (rows[i]?.[column]) {
+                            let value = rows[i][column];
+                            if (isNaN(value) || !isFinite(value)) {
+                                value = 0;
+                            }
+                            total += value;
+                        }
                     }
-                    total += value;
-                }
-                output = total / rows.length;
-                break;
-            case "COUNT":
-                output = rows.length;
-                break;
-            default:
-                break;
+                    output[outColumn] = total / rows.length;
+                    break;
+                case "COUNT":
+                    output[outColumn] = rows.length;
+                    break;
+                default:
+                    break;
+            }
         }
-        return output;
+        return [output];
     }
 
     private sort(query: Query, rows: Array<any>): void {
@@ -729,28 +731,28 @@ class JSQLWorker {
         // Replace DATE() functions
         const dateFunctions = sql.match(/\bDATE\b\(.*?\)/gi) || [];
         for (let i = 0; i < dateFunctions.length; i++) {
-            const cleanValue = dateFunctions[i].replace(/\(|\)/g, "|").replace(/\'|\"/g, "");
+            const cleanValue = dateFunctions[i].replace(/\(|\)/g, "~").replace(/\'|\"/g, "");
             sql = sql.replace(dateFunctions[i], cleanValue);
         }
 
         // Replace INT() functions
         const intFunctions = sql.match(/\bINT\b\(.*?\)/gi) || [];
         for (let i = 0; i < intFunctions.length; i++) {
-            const cleanValue = intFunctions[i].replace(/\(|\)/g, "|");
+            const cleanValue = intFunctions[i].replace(/\(|\)/g, "~");
             sql = sql.replace(intFunctions[i], cleanValue);
         }
 
         // Repalce FLOAT() functions
         const floatFunctions = sql.match(/\bFLOAT\b\(.*?\)/gi) || [];
         for (let i = 0; i < floatFunctions.length; i++) {
-            const cleanValue = floatFunctions[i].replace(/\(|\)/g, "|");
+            const cleanValue = floatFunctions[i].replace(/\(|\)/g, "~");
             sql = sql.replace(floatFunctions[i], cleanValue);
         }
 
         // Replace BOOL() functions
         const boolFunctions = sql.match(/\bBOOL\b\(.*?\)/gi) || [];
         for (let i = 0; i < boolFunctions.length; i++) {
-            const cleanValue = boolFunctions[i].replace(/\(|\)/g, "|");
+            const cleanValue = boolFunctions[i].replace(/\(|\)/g, "~");
             sql = sql.replace(boolFunctions[i], cleanValue);
         }
 
@@ -763,9 +765,9 @@ class JSQLWorker {
         let query: Query = {
             uniqueOnly: false,
             type: null,
-            function: null,
+            functions: [],
             table: null,
-            columns: null,
+            columns: [],
             offset: 0,
             limit: null,
             where: null,
@@ -849,7 +851,7 @@ class JSQLWorker {
             throw `Invalid syntax: Missing SELECT, UPDATE, INSERT INTO, or DELETE statement.`;
         } else if (query.table === null) {
             throw `Invalid syntax: Missing FROM.`;
-        } else if (query.type === "SELECT" && query.columns === null) {
+        } else if (query.type === "SELECT" && !query.columns.length && !query.functions.length) {
             throw `Invalid syntax: Missing columns.`;
         } else if (query.type === "INSERT" && query.values === null) {
             throw `Invalid syntax: Missing VALUES.`;
@@ -1136,87 +1138,96 @@ class JSQLWorker {
             query.columns = ["*"];
         }
 
-        if (segments[1].toUpperCase() === "DISTINCT" || segments[1].toUpperCase() === "UNIQUE") {
+        // Removes SELECT string
+        segments.splice(0, 1);
+
+        if (segments[0].toUpperCase() === "DISTINCT" || segments[0].toUpperCase() === "UNIQUE") {
             if (segments.includes("*")) {
                 throw `Invalid SELECT statement. DISTINCT or UNIQUE does not currently support the wildcard (*) character.`;
             }
             query.uniqueOnly = true;
-            segments.splice(1, 1);
+            segments.splice(0, 1);
         }
 
-        if (
-            segments[1].search(/\bCOUNT\b/i) === 0 ||
-            segments[1].search(/\bMIN\b/i) === 0 ||
-            segments[1].search(/\bMAX\b/i) === 0 ||
-            segments[1].search(/\bAVG\b/i) === 0 ||
-            segments[1].search(/\bSUM\b/i) === 0
-        ) {
-            const type = segments[1].match(/\w+/)[0].trim().toUpperCase();
-            const column = segments[1]
-                .match(/\(.*?\)/)[0]
-                .replace(/\(|\)/g, "")
-                .trim();
-            query.function = type as SQLFunction;
-            query.columns = [this.injectParameter(column, params)];
-            if (segments[1].indexOf("*") !== -1 && query.function !== "COUNT") {
-                throw `Invalid SELECT statement. Only the COUNT function be used with the wildcard (*) character.`;
-            }
-            segments.splice(1, 1);
-        }
-        segments.splice(0, 1);
         if (segments.length === 0) {
             throw `Invalid SELECT statement syntax.`;
         }
 
+        // Clean segments
         const statement = segments
             .join(" ")
-            .replace(/(?<=\|.*?)\s+(?=.*?\|)/g, "")
-            .replace(/(?<=\|.*?)\,(?=.*?\|)/g, ">")
+            .replace(/(?<=\~.*?)\s+(?=.*?\~)/g, "")
+            .replace(/(?<=\~.*?)\,(?=.*?\~)/g, ">")
             .trim();
         segments = statement.split(",");
 
-        query.columns = [];
+        let containsNonaggregatedData = false;
+        let containsAggregatedData = false;
         for (let i = 0; i < segments.length; i++) {
-            const col = segments[i].trim();
-            if (col.length) {
+            const seg = segments[i].trim();
+            if (seg.length) {
                 if (
-                    col.toUpperCase().search(/\bDATE\b/i) === 0 ||
-                    col.toUpperCase().search(/\bJSON\b/i) === 0 ||
-                    col.toUpperCase().search(/\bINT\b/i) === 0 ||
-                    col.toUpperCase().search(/\bBOOL\b/i) === 0 ||
-                    col.toUpperCase().search(/\bFLOAT\b/i) === 0
+                    seg.search(/\bCOUNT\b/i) === 0 ||
+                    seg.search(/\bMIN\b/i) === 0 ||
+                    seg.search(/\bMAX\b/i) === 0 ||
+                    seg.search(/\bAVG\b/i) === 0 ||
+                    seg.search(/\bSUM\b/i) === 0
                 ) {
-                    const type = col.match(/\w+/)[0].trim().toUpperCase() as FormatType;
-                    const column = col
-                        .match(/\|.*?(\||\>)/)[0]
-                        .replace(/\||\>/g, "")
+                    containsNonaggregatedData = true;
+                    const type = seg.match(/\w+/)[0].trim().toUpperCase() as SQLFunction;
+                    const column = seg
+                        .match(/\(.*?\)/)[0]
+                        .replace(/\(|\)/g, "")
                         .trim();
-                    let args = null;
-                    if (type === "DATE") {
-                        args =
-                            col
-                                .match(/\>.*?\|/)?.[0]
-                                ?.replace(/\||\+|\>|\'|\"/g, "")
-                                ?.trim() || null;
-                        if (args === null) {
-                            throw `Invalid DATE function syntax. You must provide a format string.`;
-                        }
+                    if (column === "*" && type !== "COUNT") {
+                        throw `Invalid SELECT statement. Only the COUNT function be used with the wildcard (*) character.`;
                     }
-                    if (query.columnFormats === null) {
-                        query.columnFormats = {};
-                    }
-                    query.columns.push(this.injectParameter(column, params));
-                    query.columnFormats[column] = {
-                        type: type,
-                        args: args,
-                    };
+                    query.functions.push({
+                        column: seg,
+                        key: column,
+                        function: type,
+                    });
                 } else {
-                    query.columns.push(this.injectParameter(col, params));
+                    containsAggregatedData = true;
+                    if (
+                        seg.toUpperCase().search(/\bDATE\b/i) === 0 ||
+                        seg.toUpperCase().search(/\bJSON\b/i) === 0 ||
+                        seg.toUpperCase().search(/\bINT\b/i) === 0 ||
+                        seg.toUpperCase().search(/\bBOOL\b/i) === 0 ||
+                        seg.toUpperCase().search(/\bFLOAT\b/i) === 0
+                    ) {
+                        const type = seg.match(/\w+/)[0].trim().toUpperCase() as FormatType;
+                        const column = seg
+                            .match(/\~.*?(\~|\>)/)[0]
+                            .replace(/\~|\>/g, "")
+                            .trim();
+                        let args = null;
+                        if (type === "DATE") {
+                            args =
+                                seg
+                                    .match(/\>.*?\~/)?.[0]
+                                    ?.replace(/\~|\+|\>|\'|\"/g, "")
+                                    ?.trim() || null;
+                            if (args === null) {
+                                throw `Invalid DATE function syntax. You must provide a format string.`;
+                            }
+                        }
+                        if (query.columnFormats === null) {
+                            query.columnFormats = {};
+                        }
+                        query.columns.push(this.injectParameter(column, params));
+                        query.columnFormats[column] = {
+                            type: type,
+                            args: args,
+                        };
+                    } else {
+                        query.columns.push(this.injectParameter(seg, params));
+                    }
                 }
             }
         }
-        if (query.function !== null && query.columns.length > 1) {
-            throw `Invalid SELECT statement. You cannot use other columns alongside COUNT, MIN, MAX, AVG, or SUM.`;
+        if (containsAggregatedData && containsNonaggregatedData) {
+            throw `Invalid SELECT syntax. SELECT list contains both aggergated and nonaggergated data.`;
         }
         return query;
     }

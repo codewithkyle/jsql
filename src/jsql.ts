@@ -153,6 +153,11 @@ class JSQLManager {
         });
     }
 
+    /**
+     * DO NOT USE!
+     * This endpoint is for internal use only.
+     * @deprecated
+     */
     public raw(query: Array<Partial<Query>> | Partial<Query>): Promise<any> {
         console.warn(
             "JSQL Warning: You are performing an SQL query using the raw() function. This function is designed to be used for testing and debugging purposes only. If you are using this in production just know that the Query object interface can and will introduce breaking changes at any time."
@@ -161,9 +166,10 @@ class JSQLManager {
             const queries: Array<Query> = [];
             const base: Query = {
                 type: null,
-                function: null,
+                columnFormats: null,
+                functions: [],
                 table: null,
-                columns: null,
+                columns: [],
                 offset: 0,
                 limit: null,
                 where: null,
