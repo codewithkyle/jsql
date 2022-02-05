@@ -756,6 +756,13 @@ class JSQLWorker {
             sql = sql.replace(boolFunctions[i], cleanValue);
         }
 
+        // Replace JSON() functions
+        const jsonFunctions = sql.match(/\bJSON\b\(.*?\)/gi) || [];
+        for (let i = 0; i < jsonFunctions.length; i++) {
+            const cleanValue = jsonFunctions[i].replace(/\(|\)/g, "~");
+            sql = sql.replace(jsonFunctions[i], cleanValue);
+        }
+
         return sql;
     }
 
@@ -1197,6 +1204,7 @@ class JSQLWorker {
                         seg.toUpperCase().search(/\bFLOAT\b/i) === 0
                     ) {
                         const type = seg.match(/\w+/)[0].trim().toUpperCase() as FormatType;
+                        console.log(seg);
                         const column = seg
                             .match(/\~.*?(\~|\>)/)[0]
                             .replace(/\~|\>/g, "")
