@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   `query()` method now has a default response type of `Promise<Array<any>>` instead of `Promise<any>`
 -   auto incremented `INSERT INTO` bug
 -   improved error logging format: errors now include the SQL query and the parameters object contained within a collapsed console log group
+-   default CDN URLs are now version locked to both major and minor versions
 
 ### Added
 
