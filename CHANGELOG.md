@@ -7,10 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2022-02-06
+
+### ⚠ Possible Breaking Changes ⚠
+
+This release fixes several bugs in turn correcting some non-standard outputs. While developing JSQL we try our best to prevent the introduction of breaking changes into minor releases, however, correcting query outputs to match the SQL standard.
+
+One such change is the `COUNT` query output.
+
+#### Old Output
+
+```javascript
+[100];
+```
+
+#### New Output
+
+```javascript
+[{ "COUNT(*)": 100 }];
+```
+
+### Noteworthy Changes
+
+The default CDN URLs will no longer automatically redirect to the latest minor version number. Instead, they will only automatically redirect to patch versions. We've implemented this change as a way to minimize future possible breaking changes as we continue to fix non-standard query outputs.
+
 ### Fixed
 
 -   `query()` method now has a default response type of `Promise<Array<any>>` instead of `Promise<any>`
--   auto incremented `INSERT INTO` bug
+-   auto-incremented `INSERT INTO` bug
 -   improved error logging format: errors now include the SQL query and the parameters object contained within a collapsed console log group
 -   default CDN URLs are now version locked to both major and minor versions [#27](https://github.com/codewithkyle/jsql/issues/27)
 -   `204 No Content` stream response [#25](https://github.com/codewithkyle/jsql/issues/25)
@@ -42,7 +66,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   reduced memory footprint for non-wildcard (`*`) queries
 -   relocated the `UNIQUE` constraint function
 
-[unreleased]: https://github.com/codewithkyle/jsql/compare/v1.1.2...HEAD
+[unreleased]: https://github.com/codewithkyle/jsql/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/codewithkyle/jsql/compare/v1.1.2...v1.2.0
 [1.1.2]: https://github.com/codewithkyle/jsql/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/codewithkyle/jsql/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/codewithkyle/jsql/compare/v1.0.2...v1.1.0
