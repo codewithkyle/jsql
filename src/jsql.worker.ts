@@ -233,8 +233,12 @@ class JSQLWorker {
                         output = await this.db.count(query.table);
                         // Fix output format & handle column alias
                         const value = {};
-                        if (query.functions[0].column in query.columnAlias) {
-                            value[query.columnAlias[query.functions[0].column]] = output;
+                        if (query.columnAlias.length) {
+                            for (let a = 0; a < query.columnAlias.length; a++) {
+                                if (query.columnAlias[a].column === query.functions[0].column) {
+                                    value[query.columnAlias[a].alias] = output;
+                                }
+                            }
                         } else {
                             value[query.functions[0].column] = output;
                         }
@@ -436,7 +440,7 @@ class JSQLWorker {
             }
             return value;
         } catch (e) {
-            throw `SQL Error: unknown column ${check.column} in WHERE clause.`;
+            throw `SQL Error: unknown column '${check.column}' in WHERE clause.`;
         }
     }
 
@@ -780,7 +784,10 @@ class JSQLWorker {
             for (let a = 0; a < query.columnAlias.length; a++) {
                 const column = query.columnAlias[a].column;
                 const alias = query.columnAlias[a].alias;
-                rows[i][alias] = rows[i]?.[column] ?? null;
+                if (!(column in rows[i])) {
+                    throw `SQL Error: unknown column '${column}' in SELECT statement.`;
+                }
+                rows[i][alias] = rows[i][column];
                 let canDelete = true;
                 for (let f = 0; f < query.functions.length; f++) {
                     if (query.functions[f].key === column) {
@@ -842,7 +849,7 @@ class JSQLWorker {
                 }
             }
         } catch (e) {
-            throw `SQL Error: undefined column ${e} in SELECT statement.`;
+            throw `SQL Error: unknown column '${e}' in SELECT statement.`;
         }
     }
 
