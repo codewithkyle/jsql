@@ -1,3 +1,11 @@
+export interface StreamArgs {
+    method?: string;
+    headers?: {
+        [header: string]: string;
+    };
+    credentials?: "include" | "omit" | "same-origin";
+}
+
 export type Schema = {
     name: string;
     version: number;
@@ -20,37 +28,38 @@ export type Column = {
 
 export type SQLFunction = "COUNT" | "AVG" | "MIN" | "MAX" | "SUM";
 export type SQLStatement = "SELECT" | "UPDATE" | "DELETE" | "INSERT" | "RESET";
-export type CheckOperation =
-    | "="
-    | "=="
-    | "!="
-    | "!=="
-    | ">"
-    | "<"
-    | ">="
-    | "<="
-    | "!>="
-    | "!<="
-    | "!>"
-    | "!<"
-    | "LIKE"
-    | "INCLUDES"
-    | "EXCLUDES";
+export type CheckOperation = "=" | "==" | "!=" | "!==" | ">" | "<" | ">=" | "<=" | "!>=" | "!<=" | "!>" | "!<" | "LIKE" | "INCLUDES" | "EXCLUDES" | "IN" | "!IN";
 
 export type Check = {
     type: CheckOperation;
     column: string;
     value: any;
+    format: Format | null;
 };
 export type Condition = {
     requireAll: boolean;
     checks: Array<Check | Array<Check>>;
 };
 
+export type FormatType = "DATE" | "JSON" | "INT" | "BOOL" | "FLOAT";
+export type Format = {
+    type: FormatType;
+    args?: any;
+};
+
+export type Alias = {
+    column: string;
+    alias: string;
+};
+
 export type Query = {
     uniqueOnly: boolean;
     type: SQLStatement;
-    function: SQLFunction;
+    functions: Array<{
+        column: string;
+        key: string;
+        function: SQLFunction;
+    }>;
     table: string;
     columns: Array<string>;
     where: Array<Condition>;
@@ -65,6 +74,10 @@ export type Query = {
     set: {
         [column: string]: any;
     };
+    columnFormats: {
+        [column: string]: Format;
+    };
+    columnAlias: Array<Alias>;
 };
 
 export type Settings = {
@@ -75,18 +88,21 @@ export type Settings = {
 
 export class Database {
     public start(settings?: Partial<Settings>): Promise<string | void>;
-    public query(
+
+    /**
+     * Access IndexedDB data using an SQL query.
+     * @see https://jsql.codewithkyle.com/
+     * @example await db.query("SELECT * FROM table_name WHERE column_name = $value", { value: 1 });
+     */
+    public query<T>(
         SQL: string,
         params?: {
             [key: string]: any;
         } | null,
         debug?: boolean
-    ): Promise<any>;
-    public ingest(
-        url: string,
-        table: string,
-        type?: "JSON" | "NDJSON"
-    ): Promise<void>;
+    ): Promise<Array<T>>;
+
+    public ingest(url: string, table: string, type?: "JSON" | "NDJSON"): Promise<void>;
 }
 declare const db: Database;
 export default db;

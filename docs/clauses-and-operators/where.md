@@ -12,8 +12,8 @@ SELECT * FROM table_name WHERE condition
 
 The `WHERE` clause can be combined with `AND` and `OR` operators. The `AND` and `OR` operators are used to filter records based on more than one condition:
 
-- The `AND` operator displays a record if all the conditions separated by `AND` are TRUE.
-- The `OR` operator displays a record if any of the conditions separated by `OR` is TRUE.
+-   The `AND` operator displays a record if all the conditions separated by `AND` are TRUE.
+-   The `OR` operator displays a record if any of the conditions separated by `OR` is TRUE.
 
 ```
 SELECT * FROM table_name WHERE condition = value OR condition = value
@@ -55,21 +55,21 @@ SELECT * FROM table_name WHERE (a=1 OR a=2) AND b=1 OR (a=1 OR a=2) AND c=1 AND 
 
 Support for nested groups is currently on the project roadmap with the current goal being the addition of second level groups.
 
-#### What if I need support for deeply (3+ layer) nested groups?
+### What if I need support for deeply (3+ layer) nested groups?
 
 Honestly, you have a few options available:
 
 1. Write your queries to work within the current limitations.
 1. Perform your complex queries on your actual SQL database.
 1. Switch to a proper SQL database implementation such as [sql.js](https://sql.js.org/#/) (SQLite via WASM)
-1. Fork this repository, implement this feature, and become the hero we need but don't deserve.
+1. Fork this repository, implement this feature, and become the hero we need.
 
 ## Logical Operators
 
 When creating `WHERE` clauses you can use the following logical operators beyond the traditional `=` operator.
 
 ```typescript
-type CheckOperation = "=" | "==" | "!=" | "!==" | ">" | "<" | ">=" | "<=" | "!>=" | "!<=" | "!>" | "!<" | "LIKE" | "INCLUDES" | "EXCLUDES"
+type CheckOperation = "=" | "==" | "!=" | "!==" | ">" | "<" | ">=" | "<=" | "!>=" | "!<=" | "!>" | "!<" | "LIKE" | "INCLUDES" | "EXCLUDES" | "IN" | "!IN";
 ```
 
 > **Note**: these operators relate to the JavaScript operators where `=` would be `==` and `==` would be `===` so you'll need to keep in mind the [whacky way JavaScript handles equality](https://github.com/denysdovhan/wtfjs#-examples).
@@ -90,4 +90,12 @@ The `LIKE` operator is used in a `WHERE` clause to search for a specified patter
 SELECT * FROM table_name WHERE column LIKE value
 ```
 
-> **Note:** Search uses a modified [Bitap algorithm](https://en.wikipedia.org/wiki/Bitap_algorithm) implemented via [Fuse.js](https://fusejs.io/). Also note that we've chosen to override the Fuse.js `ignoreLocation` default to true. This means that if the columns value contains the value at any location within the string it will always be included in the output. We also use a strict threshold of `0.0` meaning Fuse must find an exact match in order to return the result.
+> **Note:** Search uses a modified [Bitap algorithm](https://en.wikipedia.org/wiki/Bitap_algorithm) implemented via [Fuse.js](https://fusejs.io/). Also we've chosen to override the Fuse.js `ignoreLocation` default to true. This means that if the columns value contains the value at any location within the string it will always be included in the output. We also use a strict threshold of `0.0` meaning Fuse must find an exact match in order to return the result.
+
+## Nested Objects
+
+You can query deeply nested objects using dot notation.
+
+```
+SELECT * FROM table_name WHERE column_name.level1.level2.level3 = value
+```
