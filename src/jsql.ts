@@ -178,6 +178,7 @@ class JSQLManager {
                 set: null,
                 group: null,
                 uniqueOnly: null,
+                columnAlias: [],
             };
             if (!Array.isArray(query)) {
                 query = [query];

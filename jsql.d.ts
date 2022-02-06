@@ -47,6 +47,11 @@ export type Format = {
     args?: any;
 };
 
+export type Alias = {
+    column: string;
+    alias: string;
+};
+
 export type Query = {
     uniqueOnly: boolean;
     type: SQLStatement;
@@ -72,6 +77,7 @@ export type Query = {
     columnFormats: {
         [column: string]: Format;
     };
+    columnAlias: Array<Alias>;
 };
 
 export type Settings = {

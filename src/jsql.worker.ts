@@ -218,10 +218,26 @@ class JSQLWorker {
                 if (query.where === null) {
                     bypass = true;
                     optimized = true;
-                    if (query.functions[0].column !== "*") {
-                        output = await this.db.countFromIndex(query.table, query.functions[0].column);
+                    if (query.functions[0].key !== "*") {
+                        output = await this.db.countFromIndex(query.table, query.functions[0].key);
+                        // Fix output format & handle column alias
+                        const value = {};
+                        if (query.functions[0].column in query.columnAlias) {
+                            value[query.columnAlias[query.functions[0].column]] = output;
+                        } else {
+                            value[query.functions[0].column] = output;
+                        }
+                        output = [value];
                     } else {
                         output = await this.db.count(query.table);
+                        // Fix output format & handle column alias
+                        const value = {};
+                        if (query.functions[0].column in query.columnAlias) {
+                            value[query.columnAlias[query.functions[0].column]] = output;
+                        } else {
+                            value[query.functions[0].column] = output;
+                        }
+                        output = [value];
                     }
                 } else {
                     optimized = true;
@@ -318,7 +334,7 @@ class JSQLWorker {
                                 output = output.splice(query.offset, query.limit);
                             }
                         }
-                        // TODO: alias columns
+                        this.aliasColumns(query, output);
                         break;
                     case "INSERT":
                         for (const row of query.values) {
@@ -698,6 +714,37 @@ class JSQLWorker {
         return out;
     }
 
+    private aliasColumns(query: Query, rows: Array<any>): void {
+        if (!rows.length) {
+            return;
+        }
+        for (let i = 0; i < rows.length; i++) {
+            for (let a = 0; a < query.columnAlias.length; a++) {
+                const column = query.columnAlias[a].column;
+                const alias = query.columnAlias[a].alias;
+                rows[i][alias] = rows[i]?.[column] ?? null;
+                let canDelete = true;
+                for (let f = 0; f < query.functions.length; f++) {
+                    if (query.functions[f].key === column) {
+                        canDelete = false;
+                        break;
+                    }
+                }
+                if (canDelete) {
+                    for (let aa = a + 1; aa < query.columnAlias.length; aa++) {
+                        if (query.columnAlias[aa].column === column) {
+                            canDelete = false;
+                            break;
+                        }
+                    }
+                }
+                if (!(column in query.columns) && canDelete) {
+                    delete rows[i][column];
+                }
+            }
+        }
+    }
+
     private formatColumns(query: Query, rows: Array<any>): void {
         if (!rows.length) {
             return;
@@ -786,6 +833,7 @@ class JSQLWorker {
             set: null,
             group: null,
             columnFormats: null,
+            columnAlias: [],
         };
         for (let i = segments.length - 1; i >= 0; i--) {
             const segment = segments[i].join(" ");
@@ -1218,7 +1266,16 @@ class JSQLWorker {
         let containsNonaggregatedData = false;
         let containsAggregatedData = false;
         for (let i = 0; i < segments.length; i++) {
-            const seg = segments[i].trim();
+            let seg = segments[i].trim();
+            let alias = null;
+            if (seg.search(/\bAS\b/i) !== -1) {
+                alias = seg
+                    .match(/\bAS.*\b/i)[0]
+                    .replace(/\bAS\b/i, "")
+                    .trim();
+                alias = this.injectParameter(alias, params);
+                seg = seg.replace(/\bAS.*\b/i, "").trim();
+            }
             if (seg.length) {
                 if (
                     seg.search(/\bCOUNT\b/i) === 0 ||
@@ -1241,6 +1298,12 @@ class JSQLWorker {
                         key: column,
                         function: type,
                     });
+                    if (alias !== null) {
+                        query.columnAlias.push({
+                            column: seg,
+                            alias: alias,
+                        });
+                    }
                 } else {
                     containsAggregatedData = true;
                     if (
@@ -1251,10 +1314,11 @@ class JSQLWorker {
                         seg.toUpperCase().search(/\bFLOAT\b/i) === 0
                     ) {
                         const type = seg.match(/\w+/)[0].trim().toUpperCase() as FormatType;
-                        const column = seg
+                        let column = seg
                             .match(/\~.*?(\~|\>)/)[0]
                             .replace(/\~|\>/g, "")
                             .trim();
+                        column = this.injectParameter(column, params);
                         let args = null;
                         if (type === "DATE") {
                             args =
@@ -1269,13 +1333,26 @@ class JSQLWorker {
                         if (query.columnFormats === null) {
                             query.columnFormats = {};
                         }
-                        query.columns.push(this.injectParameter(column, params));
+                        query.columns.push(column);
                         query.columnFormats[column] = {
                             type: type,
                             args: args,
                         };
+                        if (alias !== null) {
+                            query.columnAlias.push({
+                                column: column,
+                                alias: alias,
+                            });
+                        }
                     } else {
-                        query.columns.push(this.injectParameter(seg, params));
+                        const column = this.injectParameter(seg, params);
+                        query.columns.push(column);
+                        if (alias !== null) {
+                            query.columnAlias.push({
+                                column: column,
+                                alias: alias,
+                            });
+                        }
                     }
                 }
             }
