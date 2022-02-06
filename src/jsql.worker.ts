@@ -206,6 +206,7 @@ class JSQLWorker {
                 query.type === "SELECT" &&
                 query.functions.length === 1 &&
                 query.functions[0].function === "COUNT" &&
+                query.functions[0].key.indexOf(".") === -1 &&
                 (query.where === null ||
                     (query.where !== null &&
                         query.where.length === 1 &&
@@ -253,7 +254,8 @@ class JSQLWorker {
                     query.where[0].checks.length === 1 &&
                     !Array.isArray(query.where[0].checks[0]) &&
                     query.where[0].checks[0].type === "==" &&
-                    query.where[0].checks[0].format === null
+                    query.where[0].checks[0].format === null &&
+                    query.where[0].checks[0].column.indexOf(".") !== -1
                 ) {
                     skipWhere = true;
                     optimized = true;
@@ -318,14 +320,14 @@ class JSQLWorker {
                         if (query.uniqueOnly) {
                             output = this.getUnique(output, query.columns);
                         }
+                        if (!query.columns.includes("*")) {
+                            this.formatColumns(query, output);
+                        }
                         if (query.functions.length) {
                             output = this.handleSelectFunction(query, output);
                         } else {
                             if (query.columns.length && query.columns[0] !== "*" && !query.uniqueOnly) {
                                 this.filterColumns(query, output);
-                            }
-                            if (query.columns.length && query.columnFormats !== null) {
-                                this.formatColumns(query, output);
                             }
                             if (query.order !== null) {
                                 this.sort(query, output);
@@ -404,9 +406,43 @@ class JSQLWorker {
         return out;
     }
 
+    private getValueFromKeyArray(keys: string[], obj: any): any {
+        if (!keys.length) {
+            throw "No object query keys.";
+        }
+        const key = keys[0];
+        keys.splice(0, 1);
+        if (!(key in obj)) {
+            throw `${key} not found in column value.`;
+        }
+        if (keys.length) {
+            return this.getValueFromKeyArray(keys, obj[key]);
+        } else {
+            return obj[key];
+        }
+    }
+
+    private getCheckValue(check: Check, row: any): any {
+        try {
+            const columnInRow = check.column in row;
+            let value = row?.[check.column] ?? null;
+            if (value === null && !columnInRow) {
+                if (check.column.indexOf(".") !== -1) {
+                    const keys = check.column.split(".");
+                    value = this.getValueFromKeyArray(keys, row);
+                } else {
+                    throw "Invalid column.";
+                }
+            }
+            return value;
+        } catch (e) {
+            throw `SQL Error: unknown column ${check.column} in WHERE clause.`;
+        }
+    }
+
     private check(check: Check, row: any): boolean {
         let didPassCheck = false;
-        let value = row[check.column];
+        let value = this.getCheckValue(check, row);
         if (check.format !== null) {
             value = this.formatValue(check.format.type, value, check.format?.args);
         }
@@ -648,7 +684,29 @@ class JSQLWorker {
         }
         const blacklist = [];
         for (const key in rows[0]) {
-            if (!query.columns.includes(key)) {
+            let canBlacklist = true;
+            if (query.columns.includes(key)) {
+                canBlacklist = false;
+            }
+            // } else {
+            //     let passedDeepCheck = false;
+            //     for (let c = 0; c < query.columns.length; c++) {
+            //         if (query.columns[c].indexOf(".") !== -1) {
+            //             const keys = query.columns[c].split(".");
+            //             if (keys[0] === key) {
+            //                 try {
+            //                     const value = this.getValueFromKeyArray(keys, rows[0]);
+            //                     passedDeepCheck = true;
+            //                     break;
+            //                 } catch (e) {}
+            //             }
+            //         }
+            //     }
+            //     if (passedDeepCheck) {
+            //         canBlacklist = false;
+            //     }
+            // }
+            if (canBlacklist) {
                 blacklist.push(key);
             }
         }
@@ -749,10 +807,42 @@ class JSQLWorker {
         if (!rows.length) {
             return;
         }
-        for (let i = 0; i < rows.length; i++) {
-            for (const column in query.columnFormats) {
-                rows[i][column] = this.formatValue(query.columnFormats[column].type, rows[i][column], query.columnFormats[column].args);
+        try {
+            for (let i = 0; i < rows.length; i++) {
+                // Handle deeply nested columns
+                for (let c = 0; c < query.columns.length; c++) {
+                    if (query.columns[c].indexOf(".") !== -1) {
+                        try {
+                            const keys = query.columns[c].split(".");
+                            const value = this.getValueFromKeyArray(keys, rows[i]);
+                            rows[i][query.columns[c]] = value;
+                        } catch (e) {
+                            throw query.columns[c];
+                        }
+                    }
+                }
+                // Handle deeply nested functions
+                for (let c = 0; c < query.functions.length; c++) {
+                    if (query.functions[c].key.indexOf(".") !== -1) {
+                        try {
+                            const keys = query.functions[c].key.split(".");
+                            const value = this.getValueFromKeyArray(keys, rows[i]);
+                            rows[i][query.functions[c].key] = value;
+                        } catch (e) {
+                            throw query.functions[c].key;
+                        }
+                    }
+                }
+                for (const column in query.columnFormats) {
+                    if (column in rows[i]) {
+                        rows[i][column] = this.formatValue(query.columnFormats[column].type, rows[i][column], query.columnFormats[column].args);
+                    } else {
+                        throw column;
+                    }
+                }
             }
+        } catch (e) {
+            throw `SQL Error: undefined column ${e} in SELECT statement.`;
         }
     }
 

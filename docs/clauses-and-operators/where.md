@@ -91,3 +91,11 @@ SELECT * FROM table_name WHERE column LIKE value
 ```
 
 > **Note:** Search uses a modified [Bitap algorithm](https://en.wikipedia.org/wiki/Bitap_algorithm) implemented via [Fuse.js](https://fusejs.io/). Also we've chosen to override the Fuse.js `ignoreLocation` default to true. This means that if the columns value contains the value at any location within the string it will always be included in the output. We also use a strict threshold of `0.0` meaning Fuse must find an exact match in order to return the result.
+
+## Nested Objects
+
+You can query deeply nested objects using dot notation.
+
+```
+SELECT * FROM table_name WHERE column_name.level1.level2.level3 = value
+```

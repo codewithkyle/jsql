@@ -41,6 +41,13 @@
                         for (let i = 1; i <= 100; i++) {
                             const value = {
                                 createdAt: Date.now(),
+                                deep: {
+                                    a: {
+                                        b: {
+                                            c: i,
+                                        },
+                                    },
+                                },
                             };
                             for (const letter of letters) {
                                 value[letter] = i;

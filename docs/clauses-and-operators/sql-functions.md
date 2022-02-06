@@ -42,7 +42,7 @@ SELECT SUM(column_name) FROM table_name WHERE condition
 
 ## Now
 
-The `NOW()` function injects a parameter mapped to the number of milliseconds elapsed since January 1, 1970 00:00:00 UTC.
+The `NOW()` function injects a parameter mapped to the number of milliseconds (`u`) elapsed since January 1, 1970 00:00:00 UTC.
 
 ```
 SELECT * FROM table_name WHERE expiresAt >= NOW()
@@ -60,6 +60,7 @@ The `DATE()` function allows you to format date time values.
 
 ```
 SELECT DATE(column_name, 'YYYY-MM-DD') FROM table_name
+SELECT * FROM table_name WHERE DATE(column_name, 'u') > NOW()
 ```
 
 You can format the value using the default [day.js formats](https://day.js.org/docs/en/display/format). For your convenience an ISO 8601 date format is available using the custom `c` format, a Unix timestamp is available using the custom `U` format, and a millisecond Unix timestamp is available useing the custom `u` format.
