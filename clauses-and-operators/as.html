@@ -72,7 +72,7 @@
             </i>
         </button>
         <nav-children-container>
-            <a class="" href="/clauses-and-operators/as" data-slug="clauses-and-operators/as">as</a><a class="" href="/clauses-and-operators/group-by" data-slug="clauses-and-operators/group-by">group by</a><a class="is-active" href="/clauses-and-operators/order-by" data-slug="clauses-and-operators/order-by">order by</a><a class="" href="/clauses-and-operators/pagination" data-slug="clauses-and-operators/pagination">pagination</a><a class="" href="/clauses-and-operators/sql-functions" data-slug="clauses-and-operators/sql-functions">sql functions</a><a class="" href="/clauses-and-operators/union" data-slug="clauses-and-operators/union">union</a><a class="" href="/clauses-and-operators/where" data-slug="clauses-and-operators/where">where</a>
+            <a class="is-active" href="/clauses-and-operators/as" data-slug="clauses-and-operators/as">as</a><a class="" href="/clauses-and-operators/group-by" data-slug="clauses-and-operators/group-by">group by</a><a class="" href="/clauses-and-operators/order-by" data-slug="clauses-and-operators/order-by">order by</a><a class="" href="/clauses-and-operators/pagination" data-slug="clauses-and-operators/pagination">pagination</a><a class="" href="/clauses-and-operators/sql-functions" data-slug="clauses-and-operators/sql-functions">sql functions</a><a class="" href="/clauses-and-operators/union" data-slug="clauses-and-operators/union">union</a><a class="" href="/clauses-and-operators/where" data-slug="clauses-and-operators/where">where</a>
         </nav-children-container>
     
         <button data-slug="guides" class="">
@@ -98,13 +98,10 @@
         </static-navigation-component>
     
         <static-doc-view>
-            <h1 id="order-by">Order By</h1>
-<p>The <code>ORDER BY</code> keyword is used to sort the result-set in ascending or descending order. The <code>ORDER BY</code> keyword sorts the records in ascending order by default. To sort the records in descending order, use the <code>DESC</code> keyword.</p>
-<pre><code>SELECT * FROM table_name ORDER BY column DESC;
+            <h1 id="as-keyword">AS Keyword</h1>
+<p>The <code>AS</code> command can be used to rename columns. An alias only exists for the duration of the query.</p>
+<pre><code>SELECT column_name AS alias_name FROM table_name
 </code></pre>
-<blockquote>
-<p><strong>Note:</strong> JSQL only supports ordering results by a single column.</p>
-</blockquote>
 
         </static-doc-view>
         <static-subnav-component></static-subnav-component>

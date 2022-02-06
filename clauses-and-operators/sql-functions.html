@@ -41,7 +41,7 @@
         <div flex="items-center row nowrap">
             <nav>
                 
-                    <span class="font-sm font-grey-500">v1.1.2</span>
+                    <span class="font-sm font-grey-500">v1.2.0</span>
                 
                 
                     <a aria-label="GitHub icon" href="https://github.com/codewithkyle/jsql">
@@ -72,7 +72,7 @@
             </i>
         </button>
         <nav-children-container>
-            <a class="" href="/clauses-and-operators/group-by" data-slug="clauses-and-operators/group-by">group by</a><a class="" href="/clauses-and-operators/order-by" data-slug="clauses-and-operators/order-by">order by</a><a class="" href="/clauses-and-operators/pagination" data-slug="clauses-and-operators/pagination">pagination</a><a class="is-active" href="/clauses-and-operators/sql-functions" data-slug="clauses-and-operators/sql-functions">sql functions</a><a class="" href="/clauses-and-operators/union" data-slug="clauses-and-operators/union">union</a><a class="" href="/clauses-and-operators/where" data-slug="clauses-and-operators/where">where</a>
+            <a class="" href="/clauses-and-operators/as" data-slug="clauses-and-operators/as">as</a><a class="" href="/clauses-and-operators/group-by" data-slug="clauses-and-operators/group-by">group by</a><a class="" href="/clauses-and-operators/order-by" data-slug="clauses-and-operators/order-by">order by</a><a class="" href="/clauses-and-operators/pagination" data-slug="clauses-and-operators/pagination">pagination</a><a class="is-active" href="/clauses-and-operators/sql-functions" data-slug="clauses-and-operators/sql-functions">sql functions</a><a class="" href="/clauses-and-operators/union" data-slug="clauses-and-operators/union">union</a><a class="" href="/clauses-and-operators/where" data-slug="clauses-and-operators/where">where</a>
         </nav-children-container>
     
         <button data-slug="guides" class="">
@@ -112,12 +112,41 @@
 <pre><code>SELECT COUNT(column_name) FROM table_name WHERE condition
 </code></pre>
 <h2 id="avg">Avg</h2>
-<p>The <code>AVG()</code> function returns the average value of a numeric column. </p>
+<p>The <code>AVG()</code> function returns the average value of a numeric column.</p>
 <pre><code>SELECT AVG(column_name) FROM table_name WHERE condition
 </code></pre>
 <h2 id="sum">Sum</h2>
-<p>The <code>SUM()</code> function returns the total sum of a numeric column. </p>
+<p>The <code>SUM()</code> function returns the total sum of a numeric column.</p>
 <pre><code>SELECT SUM(column_name) FROM table_name WHERE condition
+</code></pre>
+<h2 id="now">Now</h2>
+<p>The <code>NOW()</code> function injects a parameter mapped to the number of milliseconds (<code>u</code>) elapsed since January 1, 1970 00:00:00 UTC.</p>
+<pre><code>SELECT * FROM table_name WHERE expiresAt &gt;= NOW()
+</code></pre>
+<p>You can format the value using the default <a href="https://day.js.org/docs/en/display/format">day.js formats</a>. For your convenience an ISO 8601 date format is available using the custom <code>c</code> format, a Unix timestamp is available using the custom <code>U</code> format, and a millisecond Unix timestamp is available useing the custom <code>u</code> format.</p>
+<pre><code>SELECT * FROM table_name WHERE expiresAt &gt;= NOW(&#39;YYYY-MM-DD&#39;)
+</code></pre>
+<h2 id="date">Date</h2>
+<p>The <code>DATE()</code> function allows you to format date time values.</p>
+<pre><code>SELECT DATE(column_name, &#39;YYYY-MM-DD&#39;) FROM table_name
+SELECT * FROM table_name WHERE DATE(column_name, &#39;u&#39;) &gt; NOW()
+</code></pre>
+<p>You can format the value using the default <a href="https://day.js.org/docs/en/display/format">day.js formats</a>. For your convenience an ISO 8601 date format is available using the custom <code>c</code> format, a Unix timestamp is available using the custom <code>U</code> format, and a millisecond Unix timestamp is available useing the custom <code>u</code> format.</p>
+<h2 id="int">Int</h2>
+<p>The <code>INT()</code> function parses the column value as an integer.</p>
+<pre><code>SELECT INT(column_name) FROM table_name
+</code></pre>
+<h2 id="float">Float</h2>
+<p>The <code>FLOAT()</code> function parses the column value as an float.</p>
+<pre><code>SELECT FLOAT(column_name) FROM table_name
+</code></pre>
+<h2 id="bool">Bool</h2>
+<p>The <code>BOOL()</code> function parses the column value as a boolean.</p>
+<pre><code>SELECT BOOL(column_name) FROM table_name
+</code></pre>
+<h2 id="json">JSON</h2>
+<p>The <code>JSON()</code> function parses the column value as a JSON object.</p>
+<pre><code>SELECT JSON(column_name) FROM table_name
 </code></pre>
 
         </static-doc-view>

@@ -41,7 +41,7 @@
         <div flex="items-center row nowrap">
             <nav>
                 
-                    <span class="font-sm font-grey-500">v1.1.2</span>
+                    <span class="font-sm font-grey-500">v1.2.0</span>
                 
                 
                     <a aria-label="GitHub icon" href="https://github.com/codewithkyle/jsql">
@@ -72,7 +72,7 @@
             </i>
         </button>
         <nav-children-container>
-            <a class="" href="/clauses-and-operators/group-by" data-slug="clauses-and-operators/group-by">group by</a><a class="" href="/clauses-and-operators/order-by" data-slug="clauses-and-operators/order-by">order by</a><a class="" href="/clauses-and-operators/pagination" data-slug="clauses-and-operators/pagination">pagination</a><a class="" href="/clauses-and-operators/sql-functions" data-slug="clauses-and-operators/sql-functions">sql functions</a><a class="" href="/clauses-and-operators/union" data-slug="clauses-and-operators/union">union</a><a class="is-active" href="/clauses-and-operators/where" data-slug="clauses-and-operators/where">where</a>
+            <a class="" href="/clauses-and-operators/as" data-slug="clauses-and-operators/as">as</a><a class="" href="/clauses-and-operators/group-by" data-slug="clauses-and-operators/group-by">group by</a><a class="" href="/clauses-and-operators/order-by" data-slug="clauses-and-operators/order-by">order by</a><a class="" href="/clauses-and-operators/pagination" data-slug="clauses-and-operators/pagination">pagination</a><a class="" href="/clauses-and-operators/sql-functions" data-slug="clauses-and-operators/sql-functions">sql functions</a><a class="" href="/clauses-and-operators/union" data-slug="clauses-and-operators/union">union</a><a class="is-active" href="/clauses-and-operators/where" data-slug="clauses-and-operators/where">where</a>
         </nav-children-container>
     
         <button data-slug="guides" class="">
@@ -132,17 +132,17 @@ SELECT * FROM table_name WHERE (a=1 OR a=2) AND (b=1 OR c=1 OR c=2)
 <pre><code>SELECT * FROM table_name WHERE (a=1 OR a=2) AND b=1 OR (a=1 OR a=2) AND c=1 AND d=1 OR (a=1 OR a=2) AND d=2 AND e=1)
 </code></pre>
 <p>Support for nested groups is currently on the project roadmap with the current goal being the addition of second level groups.</p>
-<h4 id="what-if-i-need-support-for-deeply-3-layer-nested-groups">What if I need support for deeply (3+ layer) nested groups?</h4>
+<h3 id="what-if-i-need-support-for-deeply-3-layer-nested-groups">What if I need support for deeply (3+ layer) nested groups?</h3>
 <p>Honestly, you have a few options available:</p>
 <ol>
 <li>Write your queries to work within the current limitations.</li>
 <li>Perform your complex queries on your actual SQL database.</li>
 <li>Switch to a proper SQL database implementation such as <a href="https://sql.js.org/#/">sql.js</a> (SQLite via WASM)</li>
-<li>Fork this repository, implement this feature, and become the hero we need but don&#39;t deserve.</li>
+<li>Fork this repository, implement this feature, and become the hero we need.</li>
 </ol>
 <h2 id="logical-operators">Logical Operators</h2>
 <p>When creating <code>WHERE</code> clauses you can use the following logical operators beyond the traditional <code>=</code> operator.</p>
-<pre><code class="language-typescript">type CheckOperation = &quot;=&quot; | &quot;==&quot; | &quot;!=&quot; | &quot;!==&quot; | &quot;&gt;&quot; | &quot;&lt;&quot; | &quot;&gt;=&quot; | &quot;&lt;=&quot; | &quot;!&gt;=&quot; | &quot;!&lt;=&quot; | &quot;!&gt;&quot; | &quot;!&lt;&quot; | &quot;LIKE&quot; | &quot;INCLUDES&quot; | &quot;EXCLUDES&quot;
+<pre><code class="language-typescript">type CheckOperation = &quot;=&quot; | &quot;==&quot; | &quot;!=&quot; | &quot;!==&quot; | &quot;&gt;&quot; | &quot;&lt;&quot; | &quot;&gt;=&quot; | &quot;&lt;=&quot; | &quot;!&gt;=&quot; | &quot;!&lt;=&quot; | &quot;!&gt;&quot; | &quot;!&lt;&quot; | &quot;LIKE&quot; | &quot;INCLUDES&quot; | &quot;EXCLUDES&quot; | &quot;IN&quot; | &quot;!IN&quot;;
 </code></pre>
 <blockquote>
 <p><strong>Note</strong>: these operators relate to the JavaScript operators where <code>=</code> would be <code>==</code> and <code>==</code> would be <code>===</code> so you&#39;ll need to keep in mind the <a href="https://github.com/denysdovhan/wtfjs#-examples">whacky way JavaScript handles equality</a>.</p>
@@ -156,8 +156,12 @@ SELECT * FROM table_name WHERE (a=1 OR a=2) AND (b=1 OR c=1 OR c=2)
 <pre><code>SELECT * FROM table_name WHERE column LIKE value
 </code></pre>
 <blockquote>
-<p><strong>Note:</strong> Search uses a modified <a href="https://en.wikipedia.org/wiki/Bitap_algorithm">Bitap algorithm</a> implemented via <a href="https://fusejs.io/">Fuse.js</a>. Also note that we&#39;ve chosen to override the Fuse.js <code>ignoreLocation</code> default to true. This means that if the columns value contains the value at any location within the string it will always be included in the output. We also use a strict threshold of <code>0.0</code> meaning Fuse must find an exact match in order to return the result.</p>
+<p><strong>Note:</strong> Search uses a modified <a href="https://en.wikipedia.org/wiki/Bitap_algorithm">Bitap algorithm</a> implemented via <a href="https://fusejs.io/">Fuse.js</a>. Also we&#39;ve chosen to override the Fuse.js <code>ignoreLocation</code> default to true. This means that if the columns value contains the value at any location within the string it will always be included in the output. We also use a strict threshold of <code>0.0</code> meaning Fuse must find an exact match in order to return the result.</p>
 </blockquote>
+<h2 id="nested-objects">Nested Objects</h2>
+<p>You can query deeply nested objects using dot notation.</p>
+<pre><code>SELECT * FROM table_name WHERE column_name.level1.level2.level3 = value
+</code></pre>
 
         </static-doc-view>
         <static-subnav-component></static-subnav-component>
