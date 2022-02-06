@@ -329,18 +329,16 @@ class JSQLWorker {
                         }
                         if (query.functions.length) {
                             output = this.handleSelectFunction(query, output);
-                        } else {
-                            if (query.columns.length && query.columns[0] !== "*" && !query.uniqueOnly) {
-                                this.filterColumns(query, output);
-                            }
-                            if (query.order !== null) {
-                                this.sort(query, output);
-                            }
-                            if (query.limit !== null) {
-                                output = output.splice(query.offset, query.limit);
-                            }
+                        } else if (query.columns.length && query.columns[0] !== "*" && !query.uniqueOnly) {
+                            this.filterColumns(query, output);
                         }
                         this.aliasColumns(query, output);
+                        if (query.order !== null) {
+                            this.sort(query, output);
+                        }
+                        if (query.limit !== null) {
+                            output = output.splice(query.offset, query.limit);
+                        }
                         break;
                     case "INSERT":
                         for (const row of query.values) {
@@ -667,16 +665,22 @@ class JSQLWorker {
     }
 
     private sort(query: Query, rows: Array<any>): void {
+        if (!rows.length) {
+            return;
+        }
+        if (!(query.order.column in rows[0])) {
+            throw `SQL Error: unknown column ${query.order.column} in ORDER BY.`;
+        }
         if (query.order.by === "ASC") {
             rows.sort((a, b) => {
-                const valueA = a?.[query.order.column] ?? a;
-                const valueB = b?.[query.order.column] ?? b;
+                const valueA = a[query.order.column];
+                const valueB = b[query.order.column];
                 return valueA >= valueB ? 1 : -1;
             });
         } else {
             rows.sort((a, b) => {
-                const valueA = a?.[query.order.column] ?? a;
-                const valueB = b?.[query.order.column] ?? b;
+                const valueA = a[query.order.column];
+                const valueB = b[query.order.column];
                 return valueA >= valueB ? -1 : 1;
             });
         }
