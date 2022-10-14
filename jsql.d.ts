@@ -81,7 +81,7 @@ export type Query = {
 };
 
 export type Settings = {
-    schema: string;
+    schema: string | Schema;
     dbWorker: string;
     streamWorker: string;
 };
@@ -102,7 +102,7 @@ export class Database {
         debug?: boolean
     ): Promise<Array<T>>;
 
-    public ingest(url: string, table: string, type?: "JSON" | "NDJSON"): Promise<void>;
+    public ingest(url: string, table: string, type?: "JSON" | "NDJSON", args?: StreamArgs): Promise<void>;
 }
 declare const db: Database;
 export default db;
