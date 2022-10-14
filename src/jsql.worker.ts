@@ -80,22 +80,18 @@ class JSQLWorker {
         }
     }
 
-    private async init({ schema: a, currentVersion }) {
-        let schema: Schema;
-        if (typeof a === "string") {
-            const request = await fetch(a, {
+    private async init({ schema, currentVersion }) {
+        if (typeof schema === "string") {
+            const request = await fetch(schema, {
                 method: "GET",
                 headers: new Headers({
                     Accept: "application/json",
                 }),
-                credentials: "include",
             });
             if (!request.ok) {
                 throw `${request.status}: ${request.statusText}`;
             }
             schema = await request.json();
-        } else {
-            schema = a;
         }
         this.schema = schema;
         this.tables = schema.tables;
