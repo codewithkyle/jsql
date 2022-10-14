@@ -33,7 +33,7 @@
             })
                 .then(() => {
                     if (!localStorage.getItem("loaded-once")) {
-                        db.ingest(`${location.origin}/cards.ndjson`, "cards").then(() => {
+                        db.ingest(`${location.origin}/cards.ndjson`, "cards", "NDJSON").then(() => {
                             alert("Application is ready");
                             localStorage.setItem("loaded-once", true);
                         });

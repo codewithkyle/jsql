@@ -135,7 +135,7 @@ class JSQLWorker {
             });
         }
         await new Promise((resolve) => {
-            setTimeout(resolve, 150);
+            setTimeout(resolve, 300);
         });
         // @ts-expect-error
         this.db = await openDB(schema.name, schema.version, {
