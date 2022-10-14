@@ -12,7 +12,7 @@
     ],
     "scripts": {
         "bundle": "node ./build/bundle.js",
-        "build": "esbuild ./src/jsql.ts --outfile=jsql.js --format=esm --minify && esbuild ./src/jsql.worker.ts --outfile=jsql.worker.js --minify --bundle && esbuild ./src/stream-parser.worker.ts --outfile=stream.worker.js --minify --bundle",
+        "build": "esbuild ./src/jsql.ts --outfile=jsql.js --format=esm --minify --target=es2022 && esbuild ./src/jsql.worker.ts --outfile=jsql.worker.js --minify --bundle --target=es2022 && esbuild ./src/stream-parser.worker.ts --outfile=stream.worker.js --minify --bundle --target=es2022",
         "build:test": "npm run build && cp ./jsql.js ./test && cp ./jsql.worker.js ./test && cp ./stream.worker.js ./test",
         "test": "serve ./test",
         "predeploy": "docs -o ./public -c ./CNAME",
@@ -27,7 +27,7 @@
     "devDependencies": {
         "@codewithkyle/dev-docs": "^1.0.2",
         "dayjs": "^1.10.7",
-        "esbuild": "^0.14.10",
+        "esbuild": "^0.15.10",
         "esinstall": "^1.1.7",
         "fuse.js": "^6.5.3",
         "gh-pages": "^3.2.3",

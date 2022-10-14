@@ -80,7 +80,9 @@ class JSQLWorker {
         }
     }
 
-    private async init({ schema, currentVersion }) {
+    private async init(data) {
+        let schema = data.schema;
+        let currentVersion = data.currentVersion;
         if (typeof schema === "string") {
             const request = await fetch(schema, {
                 method: "GET",
