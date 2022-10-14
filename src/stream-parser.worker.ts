@@ -59,11 +59,7 @@ async function fetchData(url, args) {
         },
         args
     );
-    const response = await fetch(url, {
-        method: requestArgs.method,
-        credentials: requestArgs.credentials,
-        headers: new Headers(requestArgs.headers),
-    });
+    const response = await fetch(url, requestArgs);
     if (response.ok) {
         if (response.status === 204) {
             self.postMessage({

@@ -207,26 +207,46 @@ class JSQLManager {
         return new Promise(async (resolve, reject) => {
             const workerURL = await this.getWorkerURL(this.settings.streamWorker);
             const worker = new Worker(workerURL);
-            let total = 0;
-            let totalInserted = 0;
-            let hasFinished = false;
+
             try {
+                const pendingQueries = [];
+                let runningQuery = false;
+
                 worker.onmessage = async (e: MessageEvent) => {
                     const { result, type } = e.data;
                     switch (type) {
                         case "result":
-                            total++;
-                            await this.query(`INSERT INTO ${table} VALUES ($row)`, {
-                                row: result,
-                            });
-                            totalInserted++;
-                            if (total === totalInserted && hasFinished) {
-                                resolve();
+                            pendingQueries.push(result);
+                            if (!runningQuery && pendingQueries.length){
+                                runningQuery = true;
+                                const queries = pendingQueries.splice(0, pendingQueries.length - 1);
+                                const rows = [];
+                                const data = {};
+                                for (let i = 0; i < queries.length; i++){
+                                    rows.push(`$row${i}`);
+                                    data[`row${i}`] = queries[i];
+                                }
+                                let sql = `INSERT INTO ${table} VALUES (${rows.join(", ")})`;
+                                if (rows.length){
+                                    await this.query(sql, data, true);
+                                }
+                                runningQuery = false;
                             }
                             break;
                         case "done":
                             worker.terminate();
-                            hasFinished = true;
+                            const queries = pendingQueries;
+                            const rows = [];
+                            const data = {};
+                            for (let i = 0; i < queries.length; i++){
+                                rows.push(`$row${i}`);
+                                data[`row${i}`] = queries[i];
+                            }
+                            let sql = `INSERT INTO ${table} VALUES (${rows.join(", ")})`;
+                            if (rows.length){
+                                await this.query(sql, data, true);
+                            }
+                            resolve();
                             break;
                         default:
                             break;

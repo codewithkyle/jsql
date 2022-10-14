@@ -1288,22 +1288,14 @@ class JSQLWorker {
             const objects = segments.join("").match(/(?<=\().*?(?=\))/g) || [];
             for (let i = 0; i < objects.length; i++) {
                 const values = objects[i].split(",");
-                let obj = { ...this.defaults[query.table] };
-                if (values.length === 1 && values[0].trim().indexOf("$") === 0) {
-                    obj = Object.assign(obj, this.injectParameter(values[i], params));
-                    query.values.push(obj);
-                } else if (values.length >= 1) {
-                    let v = 0;
-                    for (const col in obj) {
-                        if (v >= values.length) {
-                            break;
-                        }
-                        obj[col] = this.injectParameter(values[v], params);
-                        v++;
+                for (let v = 0; v < values.length; v++){
+                    let obj = { ...this.defaults[query.table] };
+                    if (values[0].trim().indexOf("$") === 0){
+                        obj = Object.assign(obj, this.injectParameter(values[v], params));
+                        query.values.push(obj);
+                    } else {
+                        throw `Invalid syntax. VALUE error at ${objects[i]}`;
                     }
-                    query.values.push(obj);
-                } else {
-                    throw `Invalid syntax. VALUE error at ${objects[i]}`;
                 }
             }
         }
