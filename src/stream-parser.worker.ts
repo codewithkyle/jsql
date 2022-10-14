@@ -53,7 +53,6 @@ async function fetchData(url, args) {
     const requestArgs = Object.assign(
         {
             method: "GET",
-            credentials: "same-origin",
             headers: {
                 Accept: "application/x-ndjson",
             },

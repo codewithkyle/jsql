@@ -191,19 +191,19 @@ class JSQLManager {
         });
     }
 
-    public async ingest(url: string, table: string, type: "JSON" | "NDJSON" = "NDJSON") {
+    public async ingest(url: string, table: string, type: "JSON" | "NDJSON" = "NDJSON", args: StreamArgs = {}) {
         if (url.indexOf("http") !== 0) {
             console.error("Ingest URL must be a complete URL. Ex: https://example.com/data.json");
             return;
         }
         if (type === "JSON") {
-            await this.ingestAsJSON(url, table);
+            await this.ingestAsJSON(url, table, args);
         } else {
-            await this.ingestAsNDJSON(url, table);
+            await this.ingestAsNDJSON(url, table, args);
         }
     }
 
-    private ingestAsNDJSON(url: string, table: string, args: StreamArgs = {}): Promise<void> {
+    private ingestAsNDJSON(url: string, table: string, args: StreamArgs): Promise<void> {
         return new Promise(async (resolve, reject) => {
             const workerURL = await this.getWorkerURL(this.settings.streamWorker);
             const worker = new Worker(workerURL);
@@ -243,11 +243,10 @@ class JSQLManager {
         });
     }
 
-    private async ingestAsJSON(url: string, table: string, args: StreamArgs = {}) {
+    private async ingestAsJSON(url: string, table: string, args: StreamArgs) {
         const requestArgs = Object.assign(
             {
                 method: "GET",
-                credentials: "same-origin",
                 headers: {
                     Accept: "application/json",
                 },
