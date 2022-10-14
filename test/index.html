@@ -27,35 +27,82 @@
         <script type="module">
             import db from "./jsql.js";
             db.start({
-                schema: `${location.origin}/schema.json`,
+                schema: {
+                    name: "app",
+                    version: 1,
+                    tables: [
+                        {
+                            name: "cards",
+                            keyPath: "id",
+                            columns: [
+                                {
+                                    key: "id",
+                                    unique: true,
+                                },
+                                {
+                                    key: "name",
+                                },
+                                {
+                                    key: "layout",
+                                },
+                                {
+                                    key: "colors",
+                                },
+                                {
+                                    key: "legalities",
+                                },
+                                {
+                                    key: "rarity",
+                                },
+                                {
+                                    key: "keywords",
+                                },
+                                {
+                                    key: "front",
+                                },
+                                {
+                                    key: "back",
+                                },
+                                {
+                                    key: "type",
+                                },
+                                {
+                                    key: "subtypes",
+                                },
+                                {
+                                    key: "texts",
+                                },
+                                {
+                                    key: "manaCosts",
+                                },
+                                {
+                                    key: "totalManaCost",
+                                },
+                                {
+                                    key: "faceNames",
+                                },
+                                {
+                                    key: "flavorTexts",
+                                },
+                                {
+                                    key: "toughness",
+                                },
+                                {
+                                    key: "power",
+                                },
+                            ],
+                        },
+                    ],
+                },
                 dbWorker: `./jsql.worker.js`,
                 streamWorker: `./stream.worker.js`,
             })
                 .then(() => {
                     if (!localStorage.getItem("loaded-once")) {
-                        db.ingest(`${location.origin}/cards.ndjson`, "cards", "NDJSON").then(() => {
+                        db.ingest(`${location.origin}/cards.jsonl`, "cards", "NDJSON").then(() => {
                             alert("Application is ready");
                             localStorage.setItem("loaded-once", true);
                         });
-                        const letters = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"];
-                        for (let i = 1; i <= 100; i++) {
-                            const value = {
-                                createdAt: Date.now(),
-                                deep: {
-                                    a: {
-                                        b: {
-                                            c: i,
-                                        },
-                                    },
-                                },
-                            };
-                            for (const letter of letters) {
-                                value[letter] = i;
-                            }
-                            db.query(`INSERT INTO test VALUES ($value)`, {
-                                value: value,
-                            });
-                        }
                     }
                 })
                 .catch((e) => {});
