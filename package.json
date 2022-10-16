@@ -1,6 +1,6 @@
 {
     "name": "@codewithkyle/jsql",
-    "version": "1.2.5",
+    "version": "1.2.6",
     "description": "Asynchronously access and manage your IndexedDB databases using SQL queries.",
     "main": "jsql.js",
     "types": "jsql.d.ts",
