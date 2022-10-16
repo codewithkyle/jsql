@@ -387,9 +387,19 @@ class JSQLWorker {
         const claimedValues = [];
         const key = columns[0];
         for (let r = 0; r < rows.length; r++) {
-            if (!claimedValues.includes(rows[r][key])) {
-                claimedValues.push(rows[r][key]);
-                output.push(rows[r][key]);
+            const value = rows[r][key];
+            if (Array.isArray(value)){
+                for (let v = 0; v < value.length; v++){
+                    if (!claimedValues.includes(value[v])) {
+                        claimedValues.push(value[v]);
+                        output.push(value[v]);
+                    }
+                }
+            } else {
+                if (!claimedValues.includes(rows[r][key])) {
+                    claimedValues.push(rows[r][key]);
+                    output.push(rows[r][key]);
+                }
             }
         }
         return output;
