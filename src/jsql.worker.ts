@@ -2,7 +2,7 @@ import type { Table, Schema, Column, Query, SQLFunction, Condition, Check, Forma
 import { openDB } from "./lib/idb";
 import Fuse from "fuse.js";
 import dayjs from "dayjs";
-import SqlQueryParser from "./lib/parser";
+import SqlQueryParser from "./parser";
 
 class JSQLWorker {
     private db: any;

@@ -1,4 +1,4 @@
-import type { Params, Query, QueryParserResult, SQLFunction, FormatType, Check, Condition, Format, CheckOperation } from "../../jsql";
+import type { Params, Query, QueryParserResult, SQLFunction, FormatType, Check, Condition, Format, CheckOperation } from "../jsql";
 import { CONDITIONS, uuid } from "./util";
 import dayjs from "dayjs";
 
