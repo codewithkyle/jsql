@@ -1,3 +1,9 @@
+export type QueryParserResult = {
+    success: boolean;
+    queries: Array<Query>;
+    error: string;
+}
+
 export interface StreamArgs {
     method?: string;
     headers?: {
@@ -85,6 +91,10 @@ export type Settings = {
     dbWorker: string;
     streamWorker: string;
 };
+
+export type Params = {
+    [key:string]: any;
+}
 
 export class Database {
     public start(settings?: Partial<Settings>): Promise<string | void>;
