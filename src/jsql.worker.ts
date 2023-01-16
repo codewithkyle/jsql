@@ -293,17 +293,20 @@ class JSQLWorker {
                         if (query.where !== null && !skipWhere) {
                             output = this.handleWhere(query, output);
                         }
+                        const undefinedColumns:Array<string> = [];
                         for (let r = 0; r < output.length; r++) {
                             let dirty = false;
                             for (const column in query.set) {
                                 if (column === "*") {
                                     output[r] = query.set[column];
                                     dirty = true;
+                                } else if (column in output[r]) {
+                                    output[r][column] = query.set[column];
+                                    dirty = true;
                                 } else {
-                                    if (column in output[r]) {
-                                        output[r][column] = query.set[column];
-                                        dirty = true;
-                                    }
+                                    output[r][column] = query.set[column];
+                                    dirty = true;
+                                    undefinedColumns.push(column);
                                 }
                             }
                             if (dirty) {
@@ -312,6 +315,9 @@ class JSQLWorker {
                             }
                         }
                         await Promise.all(transactions);
+                        if (undefinedColumns.length){
+                            console.warn(`Inserting undefined columns: ${[...new Set(undefinedColumns)].join(", ")}`);
+                        }
                         break;
                     case "DELETE":
                         if (query.where !== null && !skipWhere) {
@@ -352,7 +358,23 @@ class JSQLWorker {
                         if (query.values?.length){
                             for (const row of query.values) {
                                 const a = { ...this.defaults[query.table] };
+                                let aKeys = Object.keys(a)?.sort() ?? [];
                                 const b = Object.assign(a, row);
+                                let bKeys = Object.keys(b)?.sort() ?? [];
+                                if (bKeys.length > aKeys.length){
+                                    const undefinedKeys:string[] = [];
+                                    let count = 0;
+                                    for (let i = bKeys.length - 1; i >= 0; i--){
+                                        if (aKeys.indexOf(bKeys[i]) === -1){
+                                            undefinedKeys.push(bKeys[i]);
+                                            count++;
+                                            if (bKeys.length - count === aKeys.length){
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    console.warn(`Inserting undefined columns: ${undefinedKeys.join(", ")}`);
+                                }
                                 if (table?.autoIncrement) {
                                     await this.db.add(query.table, b);
                                 } else {

@@ -388,6 +388,9 @@ export default class SqlQueryParser {
             segments.splice(0, 1);
             const groups = segments.join(" ").trim().split(",");
             for (let i = 0; i < groups.length; i++) {
+                if (groups[i].indexOf("*") !== -1){
+                    throw `Invalid syntax at: SET ${groups[i]}`;
+                }
                 const values = groups[i].trim().split("=");
                 if (values.length === 2) {
                     columns[values[0].trim()] = values[1].trim().replace(/^[\"\']|[\"\']$/g, "");
