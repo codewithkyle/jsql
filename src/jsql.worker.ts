@@ -694,21 +694,37 @@ class JSQLWorker {
         if (!rows.length) {
             return;
         }
-        if (query.order?.column && !(query.order.column in rows[0])) {
-            throw `SQL Error: unknown column ${query.order.column} in ORDER BY.`;
-        }
-        if (query.order?.by && query.order.by === "ASC") {
-            rows.sort((a, b) => {
-                const valueA = a[query.order.column];
-                const valueB = b[query.order.column];
-                return valueA >= valueB ? 1 : -1;
-            });
+        if (query.uniqueOnly){
+            if (query.order?.by && query.order.by === "ASC") {
+                rows.sort((a, b) => {
+                    const valueA = a;
+                    const valueB = b;
+                    return valueA >= valueB ? 1 : -1;
+                });
+            } else {
+                rows.sort((a, b) => {
+                    const valueA = a;
+                    const valueB = b;
+                    return valueA >= valueB ? -1 : 1;
+                });
+            }
         } else {
-            rows.sort((a, b) => {
-                const valueA = a[query.order.column];
-                const valueB = b[query.order.column];
-                return valueA >= valueB ? -1 : 1;
-            });
+            if (query.order?.column && !(query.order.column in rows[0])) {
+                throw `SQL Error: unknown column ${query.order.column} in ORDER BY.`;
+            }
+            if (query.order?.by && query.order.by === "ASC") {
+                rows.sort((a, b) => {
+                    const valueA = a[query.order.column];
+                    const valueB = b[query.order.column];
+                    return valueA >= valueB ? 1 : -1;
+                });
+            } else {
+                rows.sort((a, b) => {
+                    const valueA = a[query.order.column];
+                    const valueB = b[query.order.column];
+                    return valueA >= valueB ? -1 : 1;
+                });
+            }
         }
     }
 
