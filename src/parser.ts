@@ -54,17 +54,26 @@ export default class SqlQueryParser {
         const segments: Array<Array<string>> = this.parseSegments(statement);
         let query: Query = {
             uniqueOnly: false,
+            // @ts-ignore
             type: null,
             functions: [],
+            // @ts-ignore
             table: null,
             columns: [],
             offset: 0,
+            // @ts-ignore
             limit: null,
+            // @ts-ignore
             where: null,
+            // @ts-ignore
             values: null,
+            // @ts-ignore
             order: null,
+            // @ts-ignore
             set: null,
+            // @ts-ignore
             group: null,
+            // @ts-ignore
             columnFormats: null,
             columnAlias: [],
         };
@@ -137,7 +146,7 @@ export default class SqlQueryParser {
             throw `Invalid syntax: Missing SELECT, UPDATE, INSERT INTO, or DELETE statement.`;
         } else if (query.table === null) {
             throw `Invalid syntax: Missing FROM.`;
-        } else if (query.type === "SELECT" && !query.columns.length && !query.functions.length) {
+        } else if (query.type === "SELECT" && !query.columns?.length && !query.functions?.length) {
             throw `Invalid syntax: Missing columns.`;
         } else if (query.type === "INSERT" && query.values === null) {
             throw `Invalid syntax: Missing VALUES.`;
@@ -145,9 +154,9 @@ export default class SqlQueryParser {
             throw `Invalid syntax: Missing SET.`;
         } else if (query.type === "UPDATE" && query.where === null) {
             throw `Invalid syntax: Missing WHERE.`;
-        } else if (isNaN(query.limit)) {
+        } else if (query.limit !== null && isNaN(query.limit)) {
             throw `Invalid syntax: LIMIT is not a number.`;
-        } else if (isNaN(query.offset)) {
+        } else if (query.offset !== null && isNaN(query.offset)) {
             throw `Invalid syntax: OFFSET is not a number.`;
         }
         return query;
@@ -155,7 +164,7 @@ export default class SqlQueryParser {
 
     private parseSegments(statement:string) {
         let textNodes: Array<string> = statement.trim().split(/\s+/);
-        const segments = [];
+        const segments:Array<string[]> = [];
         while (textNodes.length > 0) {
             let index = -1;
             for (let i = textNodes.length - 1; i >= 0; i--) {
@@ -255,12 +264,12 @@ export default class SqlQueryParser {
         let containsAggregatedData = false;
         for (let i = 0; i < segments.length; i++) {
             let seg = segments[i].trim();
-            let alias = null;
+            let alias:string|null = null;
             if (seg.search(/\bAS\b/i) !== -1) {
                 alias = seg
-                    .match(/\bAS.*\b/i)[0]
-                    .replace(/\bAS\b/i, "")
-                    .trim();
+                    .match(/\bAS.*\b/i)?.[0]
+                    ?.replace(/\bAS\b/i, "")
+                    ?.trim() || null;
                 seg = seg.replace(/\bAS.*\b/i, "").trim();
             }
             if (seg.length) {
@@ -272,21 +281,21 @@ export default class SqlQueryParser {
                     seg.search(/\bSUM\b/i) === 0
                 ) {
                     containsNonaggregatedData = true;
-                    const type = seg.match(/\w+/)[0].trim().toUpperCase() as SQLFunction;
+                    const type = seg.match(/\w+/)?.[0]?.trim()?.toUpperCase() as SQLFunction;
                     const column = seg
-                        .match(/\(.*?\)/)[0]
-                        .replace(/\(|\)/g, "")
-                        .trim();
+                        .match(/\(.*?\)/)?.[0]
+                        ?.replace(/\(|\)/g, "")
+                        ?.trim() ?? "";
                     if (column === "*" && type !== "COUNT") {
                         throw `Invalid SELECT statement. Only the COUNT function be used with the wildcard (*) character.`;
                     }
-                    query.functions.push({
+                    query.functions?.push({
                         column: seg,
                         key: column,
                         function: type,
                     });
                     if (alias !== null) {
-                        query.columnAlias.push({
+                        query.columnAlias?.push({
                             column: seg,
                             alias: alias,
                         });
@@ -300,12 +309,12 @@ export default class SqlQueryParser {
                         seg.toUpperCase().search(/\bBOOL\b/i) === 0 ||
                         seg.toUpperCase().search(/\bFLOAT\b/i) === 0
                     ) {
-                        const type = seg.match(/\w+/)[0].trim().toUpperCase() as FormatType;
+                        const type = seg.match(/\w+/)?.[0]?.trim()?.toUpperCase() as FormatType;
                         let column = seg
-                            .match(/\~.*?(\~|\>)/)[0]
-                            .replace(/\~|\>/g, "")
-                            .trim();
-                        let args = null;
+                            .match(/\~.*?(\~|\>)/)?.[0]
+                            ?.replace(/\~|\>/g, "")
+                            ?.trim() ?? "";
+                        let args:string|null = null;
                         if (type === "DATE") {
                             args =
                                 seg
@@ -319,21 +328,21 @@ export default class SqlQueryParser {
                         if (query.columnFormats === null) {
                             query.columnFormats = {};
                         }
-                        query.columns.push(column);
+                        query.columns?.push(column);
                         query.columnFormats[column] = {
                             type: type,
                             args: args,
                         };
                         if (alias !== null) {
-                            query.columnAlias.push({
+                            query.columnAlias?.push({
                                 column: column,
                                 alias: alias,
                             });
                         }
                     } else {
-                        query.columns.push(seg);
+                        query.columns?.push(seg);
                         if (alias !== null) {
-                            query.columnAlias.push({
+                            query.columnAlias?.push({
                                 column: seg,
                                 alias: alias,
                             });
@@ -403,7 +412,7 @@ export default class SqlQueryParser {
         } else {
             query.where = [];
             segments.splice(0, 1);
-            const groups = [];
+            const groups:Array<any> = [];
             let openParentheses = 0;
             for (let i = segments.length - 1; i >= 0; i--) {
                 let index = -1;
@@ -434,15 +443,15 @@ export default class SqlQueryParser {
             }
 
             for (let i = 0; i < groups.length; i++) {
-                let statement = groups[i].join(" ");
-                statement = statement
-                    .trim()
-                    .replace(/^\(|\)$/g, "")
-                    .trim();
+                let statement = groups[i]
+                                    .join(" ")
+                                    .trim()
+                                    .replace(/^\(|\)$/g, "")
+                                    .trim();
                 groups.splice(i, 1, statement);
             }
 
-            const conditions = [];
+            const conditions:Array<Condition> = [];
             for (let i = 0; i < groups.length; i++) {
                 const condition = this.buildConditions(groups[i]);
                 conditions.push(condition);
@@ -480,7 +489,7 @@ export default class SqlQueryParser {
             requireAll: true,
             checks: [],
         };
-        let statements = [];
+        let statements:Array<any> = [];
         if (statement.search(/\bOR\b/i) !== -1) {
             condition.requireAll = false;
             statements = statement.split(/\bOR\b/i);
@@ -502,23 +511,23 @@ export default class SqlQueryParser {
         format: Format | null;
         statement: string;
     } {
-        let format = null;
+        let format:Format|null = null;
         if (statement.indexOf("~") !== -1) {
             const type = statement
-                .match(/\bDATE\b|\bBOOL\b|\bINT\b|\bJSON\b/i)[0]
+                .match(/\bDATE\b|\bBOOL\b|\bINT\b|\bJSON\b/i)?.[0]
                 .trim()
                 .toUpperCase() as FormatType;
             const column = statement
-                .match(/\~.*?(\~|\>)/)[0]
+                .match(/\~.*?(\~|\>)/)?.[0]
                 .replace(/\~|\>/g, "")
-                .trim();
-            let args = null;
+                .trim() || "";
+            let args:string|null = null;
             if (type === "DATE") {
                 args =
                     statement
                         .match(/\>.*?\~/)?.[0]
-                        ?.replace(/\~|\+|\>|\'|\"/g, "")
-                        ?.trim() || null;
+                        .replace(/\~|\+|\>|\'|\"/g, "")
+                        .trim() || null;
                 if (args === null) {
                     throw `Invalid DATE function syntax. You must provide a format string.`;
                 }
@@ -567,7 +576,7 @@ export default class SqlQueryParser {
             const { format, statement: s } = this.buildConditionCheckFormat(statement);
             statement = s;
             check.format = format;
-            check.type = statement.match(CONDITIONS).join("").trim() as CheckOperation;
+            check.type = statement?.match(CONDITIONS)?.join("")?.trim() as CheckOperation;
             const values = statement.split(check.type);
             check.column = values[0].trim();
             check.value = values[1].trim();
@@ -612,17 +621,23 @@ export default class SqlQueryParser {
 
     private injectValues(query:Query){
         // Column Alias
-        for (let i = 0; i < query.columnAlias?.length; i++){
-            query.columnAlias[i].column = this.inject(query.columnAlias[i].column);
-            query.columnAlias[i].alias = this.inject(query.columnAlias[i].alias);
+        if (query?.columnAlias?.length){
+            for (let i = 0; i < query.columnAlias.length; i++){
+                query.columnAlias[i].column = this.inject(query.columnAlias[i].column);
+                query.columnAlias[i].alias = this.inject(query.columnAlias[i].alias);
+            }
         }
         // Columns 
-        for (let i = 0; i < query.columns?.length; i++){
-            query.columns[i] = this.inject(query.columns[i]);
+        if (query?.columns){
+            for (let i = 0; i < query.columns?.length; i++){
+                query.columns[i] = this.inject(query.columns[i]);
+            }
         }
         // Values
-        for (let i = 0; i < query.values?.length; i++){
-            query.values[i] = this.inject(query.values[i]);
+        if (query?.values){
+            for (let i = 0; i < query.values?.length; i++){
+                query.values[i] = this.inject(query.values[i]);
+            }
         }
         // Set
         if (Object.keys(query.set || {})?.length){
@@ -633,17 +648,22 @@ export default class SqlQueryParser {
             query.set = obj;
         }
         // Where columns or values
-        for (let i = 0; i < query.where?.length; i++){
-            for (let c = 0; c < query.where[i].checks.length; c++){
-                if (Array.isArray(query.where[i].checks[c])){
-                    for (let j = 0; j < query.where[i].checks[c].length; j++){
-                        console.log(query.where[i].checks[c][j]);
-                        query.where[i].checks[c][j].column = this.inject(query.where[i].checks[c][j].column);
-                        query.where[i].checks[c][j].value = this.inject(query.where[i].checks[c][j].value);
+        if (query?.where){
+            for (let i = 0; i < query.where?.length; i++){
+                for (let c = 0; c < query.where[i].checks.length; c++){
+                    if (Array.isArray(query.where[i].checks[c])){
+                        // @ts-expect-error
+                        for (let j = 0; j < query.where[i].checks[c].length; j++){
+                            console.log(query.where[i].checks[c][j]);
+                            query.where[i].checks[c][j].column = this.inject(query.where[i].checks[c][j].column);
+                            query.where[i].checks[c][j].value = this.inject(query.where[i].checks[c][j].value);
+                        }
+                    } else {
+                        // @ts-expect-error
+                        query.where[i].checks[c].column = this.inject(query.where[i].checks[c].column);
+                        // @ts-expect-error
+                        query.where[i].checks[c].value = this.inject(query.where[i].checks[c].value);
                     }
-                } else {
-                    query.where[i].checks[c].column = this.inject(query.where[i].checks[c].column);
-                    query.where[i].checks[c].value = this.inject(query.where[i].checks[c].value);
                 }
             }
         }
@@ -657,7 +677,10 @@ export default class SqlQueryParser {
         query.group = this.inject(query.group);
     }
 
-    private inject(value: string|number) {
+    private inject(value: string|number|null) {
+        if (value === null){
+            return value;
+        }
         if (typeof value === "string" && value.toString().indexOf("$") === 0) {
             const key = value.substring(1, value.length);
             if (key in this.params) {

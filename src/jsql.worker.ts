@@ -1,4 +1,4 @@
-import type { Table, Schema, Column, Query, SQLFunction, Condition, Check, Format, FormatType } from "../jsql";
+import type { Table, Schema, Column, Query, Condition, Check, FormatType } from "../jsql";
 import { openDB } from "./lib/idb";
 import Fuse from "fuse.js";
 import dayjs from "dayjs";
@@ -12,11 +12,11 @@ class JSQLWorker {
             [column: string]: any;
         };
     };
-    private schema: Schema;
+    private schema: Schema | null;;
 
     constructor() {
         this.db = null;
-        this.tables = null;
+        this.tables = [];
         this.defaults = {};
         this.schema = null;
         self.onmessage = this.inbox.bind(this);
@@ -32,8 +32,8 @@ class JSQLWorker {
                     output = await this.init(data);
                     break;
                 case "query":
-                    let customQuery = [];
-                    if (!Array.isArray(data)) {
+                    let customQuery:Array<Query> = [];
+                    if (data != null && !Array.isArray(data)) {
                         customQuery = [data];
                     } else {
                         customQuery = data;
@@ -62,7 +62,7 @@ class JSQLWorker {
         }
     }
 
-    private send(type: string, data: any = null, uid: string = null, origin = null) {
+    private send(type: string, data: any = null, uid:string = "", origin = null) {
         const message = {
             type: type,
             data: data,
@@ -75,7 +75,7 @@ class JSQLWorker {
         }
     }
 
-    private async init(data) {
+    private async init(data:any) {
         let schema = data.schema;
         let currentVersion = data.currentVersion;
         if (typeof schema === "string") {
@@ -134,7 +134,7 @@ class JSQLWorker {
         });
         // @ts-expect-error
         this.db = await openDB(schema.name, schema.version, {
-            upgrade(db, oldVersion, newVersion, transaction) {
+            upgrade(db:any) {
                 // Purge old stores so we don't brick the JS runtime VM when upgrading
                 for (const table of db.objectStoreNames) {
                     db.deleteObjectStore(table);
@@ -150,6 +150,7 @@ class JSQLWorker {
                     }
                     if (typeof table.autoIncrement !== "undefined") {
                         options.autoIncrement = table.autoIncrement;
+                        // @ts-expect-error
                         delete options["keyPath"]; // auto incremented keys must be out-of-line keys
                     }
                     const store = db.createObjectStore(table.name, options);
@@ -171,6 +172,7 @@ class JSQLWorker {
         const inserts = [];
         for (const table in pTables) {
             for (let r = 0; r < pTables[table].length; r++) {
+                // @ts-expect-error
                 inserts.push(this.db.put(table, pTables[table][r]));
             }
         }
@@ -179,16 +181,20 @@ class JSQLWorker {
     }
 
     private async performQuery(queries: Array<Query>, debug: boolean): Promise<Array<any>> {
-        let rows = [];
+        let rows:Array<any> = [];
         for (let i = 0; i < queries.length; i++) {
             const query = queries[i];
             const table = this.getTable(query.table);
+
+            if (table === null){
+                throw `Invalid Syntax: missing 'table'.`;
+            }
 
             if (debug) {
                 console.log(query);
             }
 
-            let output = [];
+            let output:Array<any> = [];
             let skipWhere = false;
             let bypass = false;
             let optimized = false;
@@ -197,7 +203,7 @@ class JSQLWorker {
             if (
                 !query.uniqueOnly &&
                 query.type === "SELECT" &&
-                query.functions.length === 1 &&
+                query.functions?.length === 1 &&
                 query.functions[0].function === "COUNT" &&
                 query.functions[0].key.indexOf(".") === -1 &&
                 (query.where === null ||
@@ -213,29 +219,33 @@ class JSQLWorker {
                     bypass = true;
                     optimized = true;
                     if (query.functions[0].key !== "*") {
-                        output = await this.db.countFromIndex(query.table, query.functions[0].key);
+                        const results:any = await this.db.countFromIndex(query.table, query.functions[0].key);
                         // Fix output format & handle column alias
-                        const value = {};
-                        if (query.functions[0].column in query.columnAlias) {
-                            value[query.columnAlias[query.functions[0].column]] = output;
+                        const value:any = {};
+                        if (query.columnAlias !== null && query.functions[0].column in query.columnAlias) {
+                            value[query.columnAlias[query.functions[0].column]] = results;
                         } else {
-                            value[query.functions[0].column] = output;
+                            value[query.functions[0].column] = results;
                         }
-                        output = [value];
+                        if (Object.keys(value)?.length > 0){
+                            output = [value];
+                        }
                     } else {
-                        output = await this.db.count(query.table);
+                        const results = await this.db.count(query.table);
                         // Fix output format & handle column alias
                         const value = {};
-                        if (query.columnAlias.length) {
+                        if (query.columnAlias?.length) {
                             for (let a = 0; a < query.columnAlias.length; a++) {
                                 if (query.columnAlias[a].column === query.functions[0].column) {
-                                    value[query.columnAlias[a].alias] = output;
+                                    value[query.columnAlias[a].alias] = results;
                                 }
                             }
                         } else {
-                            value[query.functions[0].column] = output;
+                            value[query.functions[0].column] = results;
                         }
-                        output = [value];
+                        if (Object.keys(value)?.length > 0){
+                            output = [value];
+                        }
                     }
                 } else {
                     optimized = true;
@@ -271,6 +281,7 @@ class JSQLWorker {
                         if (query.table === "*") {
                             const clearTransactions = [];
                             for (let t = 0; t < this.tables.length; t++) {
+                                // @ts-expect-error
                                 clearTransactions.push(this.db.clear(this.tables[t].name));
                             }
                             await Promise.all(clearTransactions);
@@ -296,6 +307,7 @@ class JSQLWorker {
                                 }
                             }
                             if (dirty) {
+                                // @ts-expect-error
                                 transactions.push(this.db.put(query.table, output[r]));
                             }
                         }
@@ -306,6 +318,7 @@ class JSQLWorker {
                             output = this.handleWhere(query, output);
                         }
                         for (let r = 0; r < output.length; r++) {
+                            // @ts-expect-error
                             transactions.push(this.db.delete(query.table, output[r][table.keyPath]));
                         }
                         await Promise.all(transactions);
@@ -317,12 +330,12 @@ class JSQLWorker {
                         if (query.uniqueOnly) {
                             output = this.getUnique(output, query.columns);
                         }
-                        if (!query.columns.includes("*")) {
+                        if (!query.columns?.includes("*")) {
                             this.formatColumns(query, output);
                         }
-                        if (query.functions.length) {
+                        if (query.functions?.length) {
                             output = this.handleSelectFunction(query, output);
-                        } else if (query.columns.length && query.columns[0] !== "*" && !query.uniqueOnly) {
+                        } else if (query.columns?.length && query.columns[0] !== "*" && !query.uniqueOnly) {
                             this.filterColumns(query, output);
                         }
                         this.aliasColumns(query, output);
@@ -330,20 +343,22 @@ class JSQLWorker {
                             this.sort(query, output);
                         }
                         if (query.limit !== null) {
-                            output = output.splice(query.offset, query.limit);
+                            output = output.splice(query?.offset ?? 0, query.limit);
                         }
                         break;
                     case "INSERT":
-                        for (const row of query.values) {
-                            const a = { ...this.defaults[query.table] };
-                            const b = Object.assign(a, row);
-                            if (table?.autoIncrement) {
-                                await this.db.add(query.table, b);
-                            } else {
-                                await this.db.put(query.table, b);
+                        if (query.values?.length){
+                            for (const row of query.values) {
+                                const a = { ...this.defaults[query.table] };
+                                const b = Object.assign(a, row);
+                                if (table?.autoIncrement) {
+                                    await this.db.add(query.table, b);
+                                } else {
+                                    await this.db.put(query.table, b);
+                                }
                             }
+                            output = query.values;
                         }
-                        output = query.values;
                         break;
                     default:
                         break;
@@ -377,9 +392,12 @@ class JSQLWorker {
         return groups;
     }
 
-    private getUnique(rows: Array<any>, columns: Array<string>) {
-        let output = [];
-        const claimedValues = [];
+    private getUnique(rows: Array<any>, columns: Array<string>|null) {
+        if (columns === null){
+            return [];
+        }
+        let output:Array<any> = [];
+        const claimedValues:Array<string> = [];
         const key = columns[0];
         for (let r = 0; r < rows.length; r++) {
             const value = rows[r][key];
@@ -400,8 +418,11 @@ class JSQLWorker {
         return output;
     }
 
-    private getTable(name: string): Table {
-        let out = null;
+    private getTable(name: string|null): Table|null {
+        let out:Table|null = null;
+        if (!this.schema) {
+            return null;
+        }
         for (let i = 0; i < this.schema.tables.length; i++) {
             if (this.schema.tables[i].name === name) {
                 out = this.schema.tables[i];
@@ -550,7 +571,10 @@ class JSQLWorker {
     }
 
     private handleWhere(query: Query, rows: Array<any>): Array<any> {
-        let output = [];
+        let output:Array<any> = [];
+        if (!query.where?.length) {
+            return output;
+        }
         for (let r = 0; r < rows.length; r++) {
             const row = rows[r];
             let hasOneValidCondition = false;
@@ -595,6 +619,9 @@ class JSQLWorker {
 
     private handleSelectFunction(query: Query, rows: Array<any>) {
         let output = {};
+        if (!query.functions?.length){
+            return [];
+        }
         for (let f = 0; f < query.functions.length; f++) {
             const column = query.functions[f].key;
             const outColumn = query.functions[f].column;
@@ -602,32 +629,28 @@ class JSQLWorker {
             let total = 0;
             switch (func) {
                 case "MIN":
-                    let min = null;
+                    let min = 0;
                     for (let i = 0; i < rows.length; i++) {
                         if (rows[i]?.[column]) {
                             let value = rows[i][column];
                             if (i === 0) {
                                 min = value;
-                            } else {
-                                if (value < min) {
-                                    min = value;
-                                }
+                            } else if (value < min) {
+                                min = value;
                             }
                         }
                     }
                     output[outColumn] = min;
                     break;
                 case "MAX":
-                    let max = null;
+                    let max = 0;
                     for (let i = 0; i < rows.length; i++) {
                         if (rows[i]?.[column]) {
                             let value = rows[i][column];
                             if (i === 0) {
                                 max = value;
-                            } else {
-                                if (value > max) {
-                                    max = value;
-                                }
+                            } else if (value > max) {
+                                max = value;
                             }
                         }
                     }
@@ -671,10 +694,10 @@ class JSQLWorker {
         if (!rows.length) {
             return;
         }
-        if (!(query.order.column in rows[0])) {
+        if (query.order?.column && !(query.order.column in rows[0])) {
             throw `SQL Error: unknown column ${query.order.column} in ORDER BY.`;
         }
-        if (query.order.by === "ASC") {
+        if (query.order?.by && query.order.by === "ASC") {
             rows.sort((a, b) => {
                 const valueA = a[query.order.column];
                 const valueB = b[query.order.column];
@@ -693,10 +716,10 @@ class JSQLWorker {
         if (!rows.length) {
             return;
         }
-        const blacklist = [];
+        const blacklist:Array<string> = [];
         for (const key in rows[0]) {
             let canBlacklist = true;
-            if (query.columns.includes(key)) {
+            if (query.columns?.includes(key)) {
                 canBlacklist = false;
             }
             // } else {
@@ -784,7 +807,7 @@ class JSQLWorker {
     }
 
     private aliasColumns(query: Query, rows: Array<any>): void {
-        if (!rows.length) {
+        if (!rows.length || !query.columnAlias?.length) {
             return;
         }
         for (let i = 0; i < rows.length; i++) {
@@ -796,10 +819,12 @@ class JSQLWorker {
                 }
                 rows[i][alias] = rows[i][column];
                 let canDelete = true;
-                for (let f = 0; f < query.functions.length; f++) {
-                    if (query.functions[f].key === column) {
-                        canDelete = false;
-                        break;
+                if (query.functions?.length){
+                    for (let f = 0; f < query.functions.length; f++) {
+                        if (query.functions[f].key === column) {
+                            canDelete = false;
+                            break;
+                        }
                     }
                 }
                 if (canDelete) {
@@ -810,7 +835,7 @@ class JSQLWorker {
                         }
                     }
                 }
-                if (!(column in query.columns) && canDelete) {
+                if (query.columns !== null && !(column in query.columns) && canDelete) {
                     delete rows[i][column];
                 }
             }
