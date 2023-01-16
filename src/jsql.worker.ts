@@ -183,6 +183,7 @@ class JSQLWorker {
     private async performQuery(queries: Array<Query>, debug: boolean): Promise<Array<any>> {
         let rows:Array<any> = [];
         for (let i = 0; i < queries.length; i++) {
+            console.groupCollapsed();
             const query = queries[i];
             const table = this.getTable(query.table);
 
@@ -397,6 +398,7 @@ class JSQLWorker {
             } else {
                 rows.push(output);
             }
+            console.groupEnd();
         }
         if (queries.length === 1 && queries[0].group !== null) {
             rows = rows[0];

@@ -87,13 +87,13 @@ export default class SqlQueryParser {
                     if (segments[i].length !== 2) {
                         throw `Invalid syntax at: ${segments[i].join(" ")}`;
                     }
-                    query.offset = parseInt(segments[i][1]);
+                    query.offset = segments[i][1].trim()[0] === "$" ? this.inject(segments[i][1]) : parseInt(segments[i][1]);
                     break;
                 case "LIMIT":
                     if (segments[i].length !== 2) {
                         throw `Invalid syntax at: ${segments[i].join(" ")}`;
                     }
-                    query.limit = parseInt(segments[i][1]);
+                    query.limit = segments[i][1].trim()[0] === "$" ? this.inject(segments[i][1]) : parseInt(segments[i][1]);
                     break;
                 case "GROUP":
                     this.parseGroupBySegment(segments[i], query);
@@ -670,8 +670,6 @@ export default class SqlQueryParser {
         if (query.order?.column){
             query.order.column = this.inject(query.order.column);
         }
-        query.offset = this.inject(query.offset);
-        query.limit = this.inject(query.limit);
         query.table = this.inject(query.table);
         query.group = this.inject(query.group);
     }
