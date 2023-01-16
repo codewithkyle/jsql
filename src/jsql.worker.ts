@@ -41,7 +41,7 @@ class JSQLWorker {
                     output = await this.performQuery(customQuery, debug);
                     break;
                 case "sql":
-                    const { success, queries, error } = new SqlQueryParser(data.sql, this.defaults, data.params).parse();
+                    const { success, queries, error } = new SqlQueryParser(data.sql, data.params).parse();
                     if (!success) throw error;
                     output = await this.performQuery(queries, debug);
                     break;

@@ -5,12 +5,10 @@ import dayjs from "dayjs";
 export default class SqlQueryParser {
     private query: string;
     private params: Params;
-    private defaults: Params;
 
-    constructor(query:string, defaults: Params, params: Params){
+    constructor(query:string, params: Params){
         this.query = query.replace(/\-\-.*|\;$/g, "").trim();
         this.params = params;
-        this.defaults = defaults;
     }
 
     public parse(): QueryParserResult {
