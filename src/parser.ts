@@ -31,7 +31,6 @@ export default class SqlQueryParser {
         } catch (e){
             let error = e;
             if (typeof e !== "string"){
-                console.error(e);
                 error = "Invalid syntax.";
             }
             return {
@@ -654,7 +653,6 @@ export default class SqlQueryParser {
                     if (Array.isArray(query.where[i].checks[c])){
                         // @ts-expect-error
                         for (let j = 0; j < query.where[i].checks[c].length; j++){
-                            console.log(query.where[i].checks[c][j]);
                             query.where[i].checks[c][j].column = this.inject(query.where[i].checks[c][j].column);
                             query.where[i].checks[c][j].value = this.inject(query.where[i].checks[c][j].value);
                         }
