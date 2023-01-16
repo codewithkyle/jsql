@@ -338,7 +338,9 @@ class JSQLWorker {
                         } else if (query.columns?.length && query.columns[0] !== "*" && !query.uniqueOnly) {
                             this.filterColumns(query, output);
                         }
-                        this.aliasColumns(query, output);
+                        if (query.columnAlias?.length){
+                            this.aliasColumns(query, output);
+                        }
                         if (query.order !== null) {
                             this.sort(query, output);
                         }
@@ -572,9 +574,6 @@ class JSQLWorker {
 
     private handleWhere(query: Query, rows: Array<any>): Array<any> {
         let output:Array<any> = [];
-        if (!query.where?.length) {
-            return output;
-        }
         for (let r = 0; r < rows.length; r++) {
             const row = rows[r];
             let hasOneValidCondition = false;
@@ -619,9 +618,6 @@ class JSQLWorker {
 
     private handleSelectFunction(query: Query, rows: Array<any>) {
         let output = {};
-        if (!query.functions?.length){
-            return [];
-        }
         for (let f = 0; f < query.functions.length; f++) {
             const column = query.functions[f].key;
             const outColumn = query.functions[f].column;
@@ -823,7 +819,7 @@ class JSQLWorker {
     }
 
     private aliasColumns(query: Query, rows: Array<any>): void {
-        if (!rows.length || !query.columnAlias?.length) {
+        if (!rows.length) {
             return;
         }
         for (let i = 0; i < rows.length; i++) {
