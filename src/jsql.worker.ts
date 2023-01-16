@@ -316,7 +316,7 @@ class JSQLWorker {
                         }
                         await Promise.all(transactions);
                         if (undefinedColumns.length){
-                            console.warn(`Inserting undefined columns: ${[...new Set(undefinedColumns)].join(", ")}`);
+                            console.warn(`Setting undefined columns: ${[...new Set(undefinedColumns)].join(", ")}`);
                         }
                         break;
                     case "DELETE":
