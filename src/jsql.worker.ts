@@ -80,15 +80,26 @@ class JSQLWorker {
     private async warmCache(cache: boolean | string[]): Promise<void> {
         let tables:Array<Table> = [];
         if (cache === true) {
-            tables = this.tables;
+            for (let t = 0; t < this.tables.length; t++){
+                if (!this.tables[t]?.autoIncrement){
+                    // @ts-ignore
+                    tables.push(this.tables[t]);
+                } else {
+                    console.error(`Table ${this.tables[t].name} is set to autoIncrement. It cannot be cached.`);
+                }
+            }
         } else {
             // @ts-ignore
             for (let i = 0; i < cache.length; i++) {
                 for (let t = 0; t < this.tables.length; t++) {
                     if (this.tables[t].name === cache[i]) {
-                        // @ts-ignore
-                        tables.push(this.tables[t]);
-                        break;
+                        if (!this.tables[t]?.autoIncrement){
+                            // @ts-ignore
+                            tables.push(this.tables[t]);
+                            break;
+                        } else {
+                            console.error(`Table ${this.tables[t].name} is set to autoIncrement. It cannot be cached.`);
+                        }
                     }
                 }    
             }
@@ -364,6 +375,21 @@ class JSQLWorker {
                             }
                         }
                         await Promise.all(transactions);
+                        if (table?.cache) {
+                            for (let r = 0; r < output.length; r++) {
+                                let index = -1;
+                                for (let c = 0; c < table.cache.length; c++) {
+                                    // @ts-expect-error
+                                    if (table.cache[c][table.keyPath] === output[r][table.keyPath]) {
+                                        index = c;
+                                        break;
+                                    }
+                                }
+                                if (index > -1) {
+                                    table.cache[index] = output[r];
+                                }
+                            }
+                        }
                         if (undefinedColumns.length){
                             console.warn(`Setting undefined columns: ${[...new Set(undefinedColumns)].join(", ")}`);
                         }
@@ -377,6 +403,21 @@ class JSQLWorker {
                             transactions.push(this.db.delete(query.table, output[r][table.keyPath]));
                         }
                         await Promise.all(transactions);
+                        if (table?.cache){
+                            let index = -1;
+                            for (let r = output.length - 1; r >= 0; r++) {
+                                for (let c = 0; c < table.cache.length; c++) {
+                                    // @ts-expect-error
+                                    if (table.cache[c][table.keyPath] === output[r][table.keyPath]) {
+                                        index = c;
+                                        break;
+                                    }
+                                }
+                                if (index > -1) {
+                                    table.cache.splice(index, 1);
+                                }
+                            }
+                        }
                         break;
                     case "SELECT":
                         if (query.where !== null && !skipWhere) {
@@ -424,10 +465,9 @@ class JSQLWorker {
                                     }
                                     console.warn(`Inserting undefined columns: ${undefinedKeys.join(", ")}`);
                                 }
-                                if (table?.autoIncrement) {
-                                    await this.db.add(query.table, b);
-                                } else {
-                                    await this.db.update(query.table, b);
+                                await this.db.add(query.table, b);
+                                if (table?.cache) {
+                                    table.cache.push(b);
                                 }
                             }
                             output = query.values;
