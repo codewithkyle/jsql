@@ -41,7 +41,7 @@
         <div flex="items-center row nowrap">
             <nav>
                 
-                    <span class="font-sm font-grey-500">v1.2.6</span>
+                    <span class="font-sm font-grey-500">v1.3.0</span>
                 
                 
                     <a aria-label="GitHub icon" href="https://github.com/codewithkyle/jsql">
@@ -119,8 +119,29 @@ db.start({
     scheam: `https://example.com/scheam.json`, // default - also supports an object
     dbWorker: `https://example.com/js/jsql.worker.js`, // defaults to CDN
     streamWorker: `https://example.com/js/stream.worker.js`, // defaults to CDN
+    cache: [&quot;table_1&quot;], // defaults to false
 });
 </code></pre>
+<h2 id="caching">Caching</h2>
+<p>Caching is disabled by default.</p>
+<pre><code class="language-typescript">// Default
+db.start({
+    cache: false,
+});
+
+// Caches all tables
+db.start({
+    cache: true,
+});
+
+// Caches specificied tables
+db.start({
+    cache: [&quot;table_1&quot;, &quot;table_3&quot;],
+});
+</code></pre>
+<p>Not all tables need caching. We&#39;ve found that tables that contain 0 - 1000 records provide fast queries without caching. However, in our testing when querying data from a 25,000+ table IndexedDB queries can take anywhere from 0.5 to 1.5 seconds. After caching the large tables can be queried within a few milliseconds.</p>
+<p>Cached tables will be held in memory.</p>
+<p>Auto Incremented tables cannot be cached.</p>
 <h2 id="schema">Schema</h2>
 <p>You can control the IndexedDB schema through a JSON file, API response, or hard code a schema object. Database changes are triggered by changing the <code>version</code> integer.</p>
 <pre><code class="language-json">{
