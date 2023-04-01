@@ -29,6 +29,9 @@ class JSQLWorker {
             switch (type) {
                 case "init":
                     output = await this.init(data);
+                    if (data?.cache) {
+                        await this.warmCache(data.cache);
+                    }
                     break;
                 case "query":
                     let customQuery:Array<Query> = [];
@@ -71,6 +74,30 @@ class JSQLWorker {
             self.postMessage(message, origin);
         } else {
             self.postMessage(message);
+        }
+    }
+
+    private async warmCache(cache: boolean | string[]): Promise<void> {
+        let tables:Array<Table> = [];
+        if (cache === true) {
+            tables = this.tables;
+        } else {
+            // @ts-ignore
+            for (let i = 0; i < cache.length; i++) {
+                for (let t = 0; t < this.tables.length; t++) {
+                    if (this.tables[t].name === cache[i]) {
+                        // @ts-ignore
+                        tables.push(this.tables[t]);
+                        break;
+                    }
+                }    
+            }
+        }
+        for (const table of tables){
+            // @ts-ignore
+            const records = await this.db.getAll(table.name);
+            // @ts-ignore
+            table.cache = records;
         }
     }
 
@@ -128,9 +155,13 @@ class JSQLWorker {
                 }
             });
         }
+
+        // I don't know why this is here.
+        // I think it's to prevent the database from being opened too quickly after being closed.
         await new Promise((resolve) => {
             setTimeout(resolve, 300);
         });
+
         await new Promise<void>((resolve, reject) => {
             this.db = new IDB(schema.name, schema.version, {
                 success() {
@@ -179,7 +210,6 @@ class JSQLWorker {
                 }
             });
         });
-        console.log(this.db);
         const inserts = [];
         for (const table in pTables) {
             for (let r = 0; r < pTables[table].length; r++) {
@@ -194,7 +224,9 @@ class JSQLWorker {
     private async performQuery(queries: Array<Query>, debug: boolean): Promise<Array<any>> {
         let rows:Array<any> = [];
         for (let i = 0; i < queries.length; i++) {
-            console.groupCollapsed();
+            if (debug) {
+                console.groupCollapsed();
+            }
             const query = queries[i];
             const table = this.getTable(query.table);
 
@@ -217,53 +249,45 @@ class JSQLWorker {
                 query.type === "SELECT" &&
                 query.functions?.length === 1 &&
                 query.functions[0].function === "COUNT" &&
-                query.functions[0].key.indexOf(".") === -1 &&
-                (query.where === null ||
-                    (query.where !== null &&
-                        query.where.length === 1 &&
-                        query.where[0].checks.length === 1 &&
-                        !Array.isArray(query.where[0].checks[0]) &&
-                        query.where[0].checks[0].type === "==" &&
-                        !query.uniqueOnly))
+                query.functions[0].key.indexOf(".") === -1
             ) {
                 // Optimize IDB query when we are only looking to count rows
                 if (query.where === null) {
                     bypass = true;
                     optimized = true;
-                    if (query.functions[0].key !== "*") {
-                        const results:any = await this.db.countFromIndex(query.table, query.functions[0].key);
-                        // Fix output format & handle column alias
-                        const value:any = {};
-                        if (query.columnAlias !== null && query.functions[0].column in query.columnAlias) {
-                            value[query.columnAlias[query.functions[0].column]] = results;
-                        } else {
-                            value[query.functions[0].column] = results;
-                        }
-                        if (Object.keys(value)?.length > 0){
-                            output = [value];
+                    const start = performance.now();
+                    const results = await this.db.count(query.table);
+                    const end = performance.now();
+                    if (debug) console.log(`IDB get performed in ${((end - start) / 1000).toFixed(3)} sec`);
+                    // Fix output format & handle column alias
+                    const value = {};
+                    if (query.columnAlias?.length) {
+                        for (let a = 0; a < query.columnAlias.length; a++) {
+                            if (query.columnAlias[a].column === query.functions[0].column) {
+                                value[query.columnAlias[a].alias] = results;
+                            }
                         }
                     } else {
-                        const results = await this.db.count(query.table);
-                        // Fix output format & handle column alias
-                        const value = {};
-                        if (query.columnAlias?.length) {
-                            for (let a = 0; a < query.columnAlias.length; a++) {
-                                if (query.columnAlias[a].column === query.functions[0].column) {
-                                    value[query.columnAlias[a].alias] = results;
-                                }
-                            }
-                        } else {
-                            value[query.functions[0].column] = results;
-                        }
-                        if (Object.keys(value)?.length > 0){
-                            output = [value];
-                        }
+                        value[query.functions[0].column] = results;
                     }
-                } else {
+                    if (Object.keys(value)?.length > 0){
+                        output = [value];
+                    }
+                } else if (
+                    query.where !== null &&
+                    query.where.length === 1 &&
+                    query.where[0].checks.length === 1 &&
+                    // @ts-expect-error
+                    (query.where[0].checks[0].type === "==" || query.where[0].checks[0].type === "=") &&
+                    !query.uniqueOnly
+                ) {
                     optimized = true;
                     bypass = true;
+                    const start = performance.now();
                     // @ts-expect-error
-                    output = await this.db.countFromIndex(query.table, query.where[0].checks[0].column, query.where[0].checks[0].value);
+                    output = await this.db.countByIndex(query.table, query.where[0].checks[0].column, query.where[0].checks[0].value);
+                    const end = performance.now();
+                    if (debug) console.log(`IDB get performed in ${((end - start) / 1000).toFixed(3)} sec`);
                 }
             } else if (query.type === "SELECT") {
                 // Optimize IDB query when we are only looking for 1 value from 1 column
@@ -271,22 +295,32 @@ class JSQLWorker {
                     query.where !== null &&
                     query.where.length === 1 &&
                     query.where[0].checks.length === 1 &&
-                    !Array.isArray(query.where[0].checks[0]) &&
-                    query.where[0].checks[0].type === "==" &&
-                    query.where[0].checks[0].format === null &&
-                    query.where[0].checks[0].column.indexOf(".") !== -1
+                    // @ts-expect-error
+                    (query.where[0].checks[0]?.type === "==" || query.where[0].checks[0]?.type === "=") &&
+                    // @ts-expect-error
+                    query.where[0].checks[0]?.format === null &&
+                    // @ts-expect-error
+                    query.where[0].checks[0]?.column.indexOf(".") === -1
                 ) {
                     skipWhere = true;
                     optimized = true;
-                    output = await this.db.getAllFromIndex(query.table, query.where[0].checks[0].column, query.where[0].checks[0].value);
+                    const start = performance.now();
+                    // @ts-expect-error
+                    output = await this.db.getAllByIndex(query.table, query.where[0].checks[0].column, query.where[0].checks[0].value);
+                    const end = performance.now();
+                    if (debug) console.log(`IDB get performed in ${((end - start) / 1000).toFixed(3)} sec`);
                 }
             }
 
             if (!optimized) {
                 const start = performance.now();
-                output = await this.db.getAll(query.table);
+                if (table?.cache) {
+                    output = [...table.cache];
+                } else {
+                    output = await this.db.getAll(query.table);
+                }
                 const end = performance.now();
-                console.log(`Query took ${end - start}ms`);
+                if (debug) console.log(`IDB get performed in ${((end - start) / 1000).toFixed(3)} sec`);
             }
 
             if (!bypass) {
@@ -412,7 +446,10 @@ class JSQLWorker {
             } else {
                 rows.push(output);
             }
-            console.groupEnd();
+            if (debug) {
+                console.log(rows);
+                console.groupEnd();
+            }
         }
         if (queries.length === 1 && queries[0].group !== null) {
             rows = rows[0];

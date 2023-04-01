@@ -24,6 +24,7 @@ export type Table = {
     keyPath?: string;
     autoIncrement?: boolean;
     persist?: boolean;
+    cache?: any[];
 };
 
 export type Column = {
@@ -90,6 +91,7 @@ export type Settings = {
     schema: string | Schema;
     dbWorker: string;
     streamWorker: string;
+    cache: boolean | string[];
 };
 
 export type Params = {

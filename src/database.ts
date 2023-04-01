@@ -45,7 +45,6 @@ export default class IDB {
 
     public async getAll(table:string): Promise<any> {
         const tx = this.db.transaction(table, "readonly");
-        console.log(tx);
         const store = tx.objectStore(table);
         return this.promisify(store.getAll());
     }
