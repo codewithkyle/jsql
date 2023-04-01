@@ -1,3 +1,9 @@
+export type QueryParserResult = {
+    success: boolean;
+    queries: Array<Query>;
+    error: string;
+}
+
 export interface StreamArgs {
     method?: string;
     headers?: {
@@ -18,6 +24,7 @@ export type Table = {
     keyPath?: string;
     autoIncrement?: boolean;
     persist?: boolean;
+    cache?: any[];
 };
 
 export type Column = {
@@ -84,7 +91,20 @@ export type Settings = {
     schema: string | Schema;
     dbWorker: string;
     streamWorker: string;
+    cache: boolean | string[];
 };
+
+export type Params = {
+    [key:string]: any;
+}
+
+export type OpenCallback = {
+    upgrade: (db: IDBDatabase, oldVersion: number, newVersion: number | null) => void;
+    blocked: (event: Event) => void;
+    blocking: (event: Event) => void;
+    terminated: (event: Event) => void;
+    success: () => void;
+}
 
 export class Database {
     public start(settings?: Partial<Settings>): Promise<string | void>;

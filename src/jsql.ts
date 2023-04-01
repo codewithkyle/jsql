@@ -13,19 +13,19 @@ class JSQLManager {
     private settings: Settings;
 
     constructor() {
-        this.worker = null;
         this.ready = false;
         this.queue = [];
         this.promises = {};
         this.settings = {
             schema: `${location.origin}/schema.json`,
-            dbWorker: "https://unpkg.com/@codewithkyle/jsql@1.2/jsql.worker.js",
-            streamWorker: "https://unpkg.com/@codewithkyle/jsql@1.2/stream.worker.js",
+            dbWorker: "https://unpkg.com/@codewithkyle/jsql@1.3/jsql.worker.js",
+            streamWorker: "https://unpkg.com/@codewithkyle/jsql@1.3/stream.worker.js",
+            cache: false,
         };
     }
 
     private async getWorkerURL(settingsURL: string) {
-        let url = null;
+        let url:string;
         if (settingsURL.indexOf("https://unpkg.com") === 0) {
             let request = await fetch(settingsURL);
             if (request.ok) {
@@ -37,6 +37,7 @@ class JSQLManager {
         } else {
             url = settingsURL;
         }
+        // @ts-ignore
         return url;
     }
 
@@ -46,7 +47,9 @@ class JSQLManager {
         if (type !== "string" && type !== "object") {
             console.error("Schema file setting must be a schema object or a URL");
             return;
-        } else if (type === "string" && this.settings.schema.indexOf("http") !== 0) {
+        } 
+        // @ts-ignore
+        else if (type === "string" && this.settings.schema.indexOf("http") !== 0) {
             console.error("Schema file setting must be a complete URL. Ex: https://example.com/schema.json");
             return;
         }
@@ -67,6 +70,7 @@ class JSQLManager {
                         data: {
                             schema: this.settings.schema,
                             currentVersion: localStorage.getItem("JSQL_DB_VERSION") || null,
+                            cache: this.settings.cache,
                         },
                     });
                 });

@@ -96,6 +96,7 @@
                 },
                 dbWorker: `./jsql.worker.js`,
                 streamWorker: `./stream.worker.js`,
+                cache: ["cards"],
             })
                 .then(() => {
                     if (!localStorage.getItem("loaded-once")) {
