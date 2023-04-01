@@ -96,6 +96,14 @@ export type Params = {
     [key:string]: any;
 }
 
+export type OpenCallback = {
+    upgrade: (db: IDBDatabase, oldVersion: number, newVersion: number | null) => void;
+    blocked: (event: Event) => void;
+    blocking: (event: Event) => void;
+    terminated: (event: Event) => void;
+    success: () => void;
+}
+
 export class Database {
     public start(settings?: Partial<Settings>): Promise<string | void>;
 

@@ -1,11 +1,11 @@
 import type { Table, Schema, Column, Query, Condition, Check, FormatType } from "../jsql";
-import { openDB } from "./lib/idb";
 import Fuse from "fuse.js";
 import dayjs from "dayjs";
 import SqlQueryParser from "./parser";
+import IDB from "./database";
 
 class JSQLWorker {
-    private db: any;
+    private db: IDB;
     private tables: Array<Table>;
     private defaults: {
         [table: string]: {
@@ -15,7 +15,6 @@ class JSQLWorker {
     private schema: Schema | null;;
 
     constructor() {
-        this.db = null;
         this.tables = [];
         this.defaults = {};
         this.schema = null;
@@ -132,48 +131,60 @@ class JSQLWorker {
         await new Promise((resolve) => {
             setTimeout(resolve, 300);
         });
-        // @ts-expect-error
-        this.db = await openDB(schema.name, schema.version, {
-            upgrade(db:any) {
-                // Purge old stores so we don't brick the JS runtime VM when upgrading
-                for (const table of db.objectStoreNames) {
-                    db.deleteObjectStore(table);
+        await new Promise<void>((resolve, reject) => {
+            this.db = new IDB(schema.name, schema.version, {
+                success() {
+                    resolve();
+                },
+                upgrade(db:IDBDatabase) {
+                    // Purge old stores so we don't brick the JS runtime VM when upgrading
+                    for (const table of db.objectStoreNames) {
+                        db.deleteObjectStore(table);
+                    }
+                    for (let i = 0; i < schema.tables.length; i++) {
+                        const table: Table = schema.tables[i];
+                        const options = {
+                            keyPath: "id",
+                            autoIncrement: false,
+                        };
+                        if (table?.keyPath) {
+                            options.keyPath = table.keyPath;
+                        }
+                        if (typeof table.autoIncrement !== "undefined") {
+                            options.autoIncrement = table.autoIncrement;
+                            // @ts-expect-error
+                            delete options["keyPath"]; // auto incremented keys must be out-of-line keys
+                        }
+                        const store = db.createObjectStore(table.name, options);
+                        for (let k = 0; k < table.columns.length; k++) {
+                            const column: Column = table.columns[k];
+                            store.createIndex(column.key, column.key, {
+                                unique: column?.unique ?? false,
+                            });
+                        }
+                    }
+                    resolve();
+                },
+                blocked() {
+                    console.error("This app needs to restart. Close all tabs for this app and before relaunching.");
+                    reject();
+                },
+                blocking() {
+                    console.error("This app needs to restart. Close all tabs for this app and before relaunching.");
+                    reject();
+                },
+                terminated() {
+                    console.error("This app needs to restart. Close all tabs for this app and before relaunching.");
+                    reject();
                 }
-                for (let i = 0; i < schema.tables.length; i++) {
-                    const table: Table = schema.tables[i];
-                    const options = {
-                        keyPath: "id",
-                        autoIncrement: false,
-                    };
-                    if (table?.keyPath) {
-                        options.keyPath = table.keyPath;
-                    }
-                    if (typeof table.autoIncrement !== "undefined") {
-                        options.autoIncrement = table.autoIncrement;
-                        // @ts-expect-error
-                        delete options["keyPath"]; // auto incremented keys must be out-of-line keys
-                    }
-                    const store = db.createObjectStore(table.name, options);
-                    for (let k = 0; k < table.columns.length; k++) {
-                        const column: Column = table.columns[k];
-                        store.createIndex(column.key, column.key, {
-                            unique: column?.unique ?? false,
-                        });
-                    }
-                }
-            },
-            blocked() {
-                console.error("This app needs to restart. Close all tabs for this app and before relaunching.");
-            },
-            blocking() {
-                console.error("This app needs to restart. Close all tabs for this app and before relaunching.");
-            },
+            });
         });
+        console.log(this.db);
         const inserts = [];
         for (const table in pTables) {
             for (let r = 0; r < pTables[table].length; r++) {
                 // @ts-expect-error
-                inserts.push(this.db.put(table, pTables[table][r]));
+                inserts.push(this.db.update(table, pTables[table][r]));
             }
         }
         await Promise.all(inserts);
@@ -272,7 +283,10 @@ class JSQLWorker {
             }
 
             if (!optimized) {
+                const start = performance.now();
                 output = await this.db.getAll(query.table);
+                const end = performance.now();
+                console.log(`Query took ${end - start}ms`);
             }
 
             if (!bypass) {
@@ -312,7 +326,7 @@ class JSQLWorker {
                             }
                             if (dirty) {
                                 // @ts-expect-error
-                                transactions.push(this.db.put(query.table, output[r]));
+                                transactions.push(this.db.update(query.table, output[r]));
                             }
                         }
                         await Promise.all(transactions);
@@ -379,7 +393,7 @@ class JSQLWorker {
                                 if (table?.autoIncrement) {
                                     await this.db.add(query.table, b);
                                 } else {
-                                    await this.db.put(query.table, b);
+                                    await this.db.update(query.table, b);
                                 }
                             }
                             output = query.values;
