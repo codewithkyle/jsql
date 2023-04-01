@@ -18,8 +18,8 @@ class JSQLManager {
         this.promises = {};
         this.settings = {
             schema: `${location.origin}/schema.json`,
-            dbWorker: "https://unpkg.com/@codewithkyle/jsql@1.2/jsql.worker.js",
-            streamWorker: "https://unpkg.com/@codewithkyle/jsql@1.2/stream.worker.js",
+            dbWorker: "https://unpkg.com/@codewithkyle/jsql@1.3/jsql.worker.js",
+            streamWorker: "https://unpkg.com/@codewithkyle/jsql@1.3/stream.worker.js",
             cache: false,
         };
     }
