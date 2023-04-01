@@ -237,6 +237,10 @@ class JSQLManager {
                                 runningQuery = false;
                             }
                             break;
+                        case "error":
+                            worker.terminate();
+                            reject();
+                            break;
                         case "done":
                             worker.terminate();
                             const queries = pendingQueries;
@@ -267,7 +271,7 @@ class JSQLManager {
         });
     }
 
-    private async ingestAsJSON(url: string, table: string, args: StreamArgs) {
+    private async ingestAsJSON(url: string, table: string, args: StreamArgs): Promise<void> {
         const requestArgs = Object.assign(
             {
                 method: "GET",
