@@ -225,7 +225,7 @@ class JSQLWorker {
         for (const table in pTables) {
             for (let r = 0; r < pTables[table].length; r++) {
                 // @ts-expect-error
-                inserts.push(this.db.update(table, pTables[table][r]));
+                inserts.push(this.db.add(table, pTables[table][r]));
             }
         }
         await Promise.all(inserts);
