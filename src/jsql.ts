@@ -232,14 +232,10 @@ class JSQLManager {
                                 }
                                 let sql = `INSERT INTO ${table} VALUES (${rows.join(", ")})`;
                                 if (rows.length){
-                                    await this.query(sql, data, true);
+                                    await this.query(sql, data);
                                 }
                                 runningQuery = false;
                             }
-                            break;
-                        case "error":
-                            worker.terminate();
-                            reject();
                             break;
                         case "done":
                             worker.terminate();
@@ -252,7 +248,7 @@ class JSQLManager {
                             }
                             let sql = `INSERT INTO ${table} VALUES (${rows.join(", ")})`;
                             if (rows.length){
-                                await this.query(sql, data, true);
+                                await this.query(sql, data);
                             }
                             resolve();
                             break;
@@ -271,7 +267,7 @@ class JSQLManager {
         });
     }
 
-    private async ingestAsJSON(url: string, table: string, args: StreamArgs): Promise<void> {
+    private async ingestAsJSON(url: string, table: string, args: StreamArgs) {
         const requestArgs = Object.assign(
             {
                 method: "GET",

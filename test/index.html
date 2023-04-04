@@ -100,6 +100,7 @@
             })
                 .then(() => {
                     if (!localStorage.getItem("loaded-once")) {
+                        window.alert("Start ingest");
                         db.ingest(`${location.origin}/cards.jsonl`, "cards", "NDJSON").then(() => {
                             alert("Application is ready");
                             localStorage.setItem("loaded-once", true);

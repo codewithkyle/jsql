@@ -105,10 +105,12 @@ class JSQLWorker {
             }
         }
         for (const table of tables){
-            // @ts-ignore
-            const records = await this.db.getAll(table.name);
-            // @ts-ignore
-            table.cache = records;
+            try{
+                const records = await this.db.getAll(table.name);
+                table.cache = records;
+            } catch (e) {
+                table.cache = [];
+            }
         }
     }
 
