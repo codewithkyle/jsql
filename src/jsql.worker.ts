@@ -398,21 +398,21 @@ class JSQLWorker {
                             }
                         }
                         await Promise.all(transactions);
-                        //if (table?.cache) {
-                            //for (let r = 0; r < output.length; r++) {
-                                //let index = -1;
-                                //for (let c = 0; c < table.cache.length; c++) {
-                                    //// @ts-expect-error
-                                    //if (table.cache[c][table.keyPath] === output[r][table.keyPath]) {
-                                        //index = c;
-                                        //break;
-                                    //}
-                                //}
-                                //if (index > -1) {
-                                    //table.cache[index] = output[r];
-                                //}
-                            //}
-                        //}
+                        if (table?.cache) {
+                            for (let r = 0; r < output.length; r++) {
+                                let index = -1;
+                                for (let c = 0; c < table.cache.length; c++) {
+                                    // @ts-expect-error
+                                    if (table.cache[c][table.keyPath] === output[r][table.keyPath]) {
+                                        index = c;
+                                        break;
+                                    }
+                                }
+                                if (index > -1) {
+                                    table.cache[index] = output[r];
+                                }
+                            }
+                        }
                         if (undefinedColumns.length){
                             console.warn(`Setting undefined columns: ${[...new Set(undefinedColumns)].join(", ")}`);
                         }
@@ -426,21 +426,21 @@ class JSQLWorker {
                             transactions.push(this.db.delete(query.table, output[r][table.keyPath]));
                         }
                         await Promise.all(transactions);
-                        //if (table?.cache){
-                            //let index = -1;
-                            //for (let r = output.length - 1; r >= 0; r++) {
-                                //for (let c = 0; c < table.cache.length; c++) {
-                                    //// @ts-expect-error
-                                    //if (table.cache[c][table.keyPath] === output[r][table.keyPath]) {
-                                        //index = c;
-                                        //break;
-                                    //}
-                                //}
-                                //if (index > -1) {
-                                    //table.cache.splice(index, 1);
-                                //}
-                            //}
-                        //}
+                        if (table?.cache){
+                            let index = -1;
+                            for (let r = output.length - 1; r >= 0; r++) {
+                                for (let c = 0; c < table.cache.length; c++) {
+                                    // @ts-expect-error
+                                    if (table.cache[c][table.keyPath] === output[r][table.keyPath]) {
+                                        index = c;
+                                        break;
+                                    }
+                                }
+                                if (index > -1) {
+                                    table.cache.splice(index, 1);
+                                }
+                            }
+                        }
                         break;
                     case "SELECT":
                         if (query.where !== null && !skipWhere) {
@@ -489,9 +489,9 @@ class JSQLWorker {
                                     console.warn(`Inserting undefined columns: ${undefinedKeys.join(", ")}`);
                                 }
                                 await this.db.add(query.table, b);
-                                //if (table?.cache) {
-                                    //table.cache.push(b);
-                                //}
+                                if (table?.cache) {
+                                    table.cache.push(b);
+                                }
                             }
                             output = query.values;
                         }
