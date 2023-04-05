@@ -3,9 +3,13 @@ import type { OpenCallback } from "../jsql";
 export default class IDB {
     private db: IDBDatabase;
     private name: string;
+    private queue: Transaction[];
+    private flushing: boolean;
 
     constructor(name:string, version:number, callbacks:OpenCallback) {
         this.name = name;
+        this.queue = [];
+        this.flushing = false;
         const req = indexedDB.open(name, version);
         req.onupgradeneeded = (event) => {
             if (callbacks && callbacks?.upgrade && typeof callbacks.upgrade === "function") {
@@ -45,95 +49,173 @@ export default class IDB {
         return this.promisify(indexedDB.deleteDatabase(this.name));
     }
 
-    public async getAll(table:string): Promise<any> {
-        const tx = this.db.transaction(table, "readonly");
-        const store = tx.objectStore(table);
-        const records = await this.promisify(store.getAll());
-        this.restoreData(records);
-        return records;
-    }
-
-    public async getAllByIndex(table:string, column:string, key:any): Promise<any> {
-        const tx = this.db.transaction(table, "readonly");
-        const store = tx.objectStore(table);
-        const index = store.index(column);
-        const records = await this.promisify(index.getAll(key));
-        this.restoreData(records);
-        return records;
-    }
-
-    public async getByIndex(table:string, column:string, key:any): Promise<any|undefined> {
-        const tx = this.db.transaction(table, "readonly");
-        const store = tx.objectStore(table);
-        const index = store.index(column);
-        const record = await this.promisify(index.get(key));
-        if (record){
-            for (const key in record){
-                if (typeof record[key] === "string"){
-                    try {
-                        record[key] = JSON.parse(record[key]);
-                    } catch (e) {}
+    public getAll(table:string): Promise<any> {
+        return new Promise((resolve, reject) => {
+            const transaction = new Transaction(resolve, reject, async () => {
+                try {
+                    const tx = this.db.transaction(table, "readonly");
+                    const store = tx.objectStore(table);
+                    const records = await this.promisify(store.getAll());
+                    this.restoreData(records);
+                    return records;
+                } catch (e) {
+                    return [];
                 }
-            }
-        }
-        return record;
+            }); 
+            this.queue.push(transaction);
+            this.flush()
+        });
     }
 
-    public async clear(table:string): Promise<void> {
-        const tx = this.db.transaction(table, "readwrite");
-        const store = tx.objectStore(table);
-        return this.promisify(store.clear());
+    public getAllByIndex(table:string, column:string, key:any): Promise<any> {
+        return new Promise((resolve, reject) => {
+            const transaction = new Transaction(resolve, reject, async () => {
+                try {
+                    const tx = this.db.transaction(table, "readonly");
+                    const store = tx.objectStore(table);
+                    const index = store.index(column);
+                    const records = await this.promisify(index.getAll(key));
+                    this.restoreData(records);
+                    return records;
+                } catch (e) {
+                    return [];
+                }
+            });
+            this.queue.push(transaction);
+            this.flush()
+        });
     }
 
-    public async count(table:string): Promise<number> { 
-        const tx = this.db.transaction(table, "readonly");
-        const store = tx.objectStore(table);
-        return this.promisify(store.count());
+    public getByIndex(table:string, column:string, key:any): Promise<any|undefined> {
+        return new Promise((resolve, reject) => {
+            const transaction = new Transaction(resolve, reject, async () => {
+                try {
+                    const tx = this.db.transaction(table, "readonly");
+                    const store = tx.objectStore(table);
+                    const index = store.index(column);
+                    const record = await this.promisify(index.get(key));
+                    if (record != null){
+                        for (const key in record){
+                            if (typeof record[key] === "string"){
+                                try {
+                                    record[key] = JSON.parse(record[key]);
+                                } catch (e) {}
+                            }
+                        }
+                    }
+                    return record;
+                } catch (e) {
+                    return undefined;
+                }
+            });
+            this.queue.push(transaction);
+            this.flush()
+        });
     }
 
-    public async countByIndex(table:string, column:string, key:any): Promise<number> {
-        const tx = this.db.transaction(table, "readonly");
-        const store = tx.objectStore(table);
-        const index = store.index(column);
-        return this.promisify(index.count(key));
+    public clear(table:string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const transaction = new Transaction(resolve, reject, async () => {
+                try {
+                    const tx = this.db.transaction(table, "readwrite");
+                    const store = tx.objectStore(table);
+                    await this.promisify(store.clear());
+                } catch (e) {}
+            });
+            this.queue.push(transaction);
+            this.flush()
+        });
+    }
+
+    public count(table:string): Promise<number> { 
+        return new Promise((resolve, reject) => {
+            const transaction = new Transaction(resolve, reject, async () => {
+                try {
+                    const tx = this.db.transaction(table, "readonly");
+                    const store = tx.objectStore(table);
+                    return await this.promisify(store.count());
+                } catch (e) {
+                    return 0;
+                }
+            });
+            this.queue.push(transaction);
+            this.flush()
+        });
+    }
+
+    public countByIndex(table:string, column:string, key:any): Promise<number> {
+        return new Promise((resolve, reject) => {
+            const transaction = new Transaction(resolve, reject, async () => {
+                try {
+                    const tx = this.db.transaction(table, "readonly");
+                    const store = tx.objectStore(table);
+                    const index = store.index(column);
+                    return await this.promisify(index.count(key));
+                } catch (e) {
+                    return 0;
+                }
+            });
+            this.queue.push(transaction);
+            this.flush()
+        });
     }
 
     public add(table:string, data:any): Promise<void> {
-        return new Promise(async (resolve, reject) => {
-            const tx = this.db.transaction(table, "readwrite", { durability: "strict" });
-            tx.oncomplete = () => {
-                resolve();
-            } 
-            tx.onerror = () => {
-                reject(tx.error);
-            }
-            const store = tx.objectStore(table);
-            const cleanData = structuredClone(data);
-            this.cleanData(cleanData);
-            await this.promisify(store.add(cleanData));
+        return new Promise((resolve, reject) => {
+            const transaction = new Transaction(resolve, reject, async () => {
+                const tx = this.db.transaction(table, "readwrite", { durability: "strict" });
+                tx.oncomplete = () => {
+                    resolve();
+                } 
+                tx.onerror = () => {
+                    reject(tx.error);
+                }
+                const store = tx.objectStore(table);
+                const cleanData = structuredClone(data);
+                this.cleanData(cleanData);
+                await this.promisify(store.add(cleanData));
+            });
+            this.queue.push(transaction);
+            this.flush();
         });
     }
 
     public update(table:string, data:any): Promise<void> {
-        return new Promise(async (resolve, reject) => {
-            const tx = this.db.transaction(table, "readwrite", { durability: "strict" });
-            tx.oncomplete = () => {
-                resolve();
-            }
-            tx.onerror = () => {
-                reject(tx.error);
-            }
-            const store = tx.objectStore(table);
-            const cleanData = structuredClone(data);
-            this.cleanData(cleanData);
-            await this.promisify(store.put(cleanData));
+        return new Promise((resolve, reject) => {
+            const transaction = new Transaction(resolve, reject, async () => {
+                const tx = this.db.transaction(table, "readwrite", { durability: "strict" });
+                tx.oncomplete = () => {
+                    resolve();
+                }
+                tx.onerror = () => {
+                    reject(tx.error);
+                }
+                const store = tx.objectStore(table);
+                const cleanData = structuredClone(data);
+                this.cleanData(cleanData);
+                await this.promisify(store.put(cleanData));
+            });
+            this.queue.push(transaction);
+            this.flush();
         });
     }
 
     public async delete(table:string, key:any): Promise<void> {
-        const tx = this.db.transaction(table, "readwrite");
-        const store = tx.objectStore(table);
-        return this.promisify(store.delete(key));
+        return new Promise((resolve, reject) => {
+            const transaction = new Transaction(resolve, reject, async () => {
+                const tx = this.db.transaction(table, "readwrite", { durability: "strict" });
+                tx.oncomplete = () => {
+                    resolve();
+                }
+                tx.onerror = () => {
+                    reject(tx.error);
+                }
+                const store = tx.objectStore(table);
+                await this.promisify(store.delete(key));
+            });
+            this.queue.push(transaction);
+            this.flush();
+        });
     }
 
     private cleanData(data:any): any {
@@ -173,5 +255,41 @@ export default class IDB {
                 req.onblocked = () => reject(req.error);
             }
         });
+    }
+
+    private async flush(force = false) {
+        if (this.flushing && !force) return;
+        if (this.queue.length > 0 && this.db){
+            this.flushing = true;
+            const transaction = this.queue.shift();
+            if (transaction){
+                try {
+                    const result = await transaction.tx();
+                    transaction.resolve(result);
+                } catch (e) {
+                    transaction.reject(e);
+                }
+            }
+            if (this.queue.length > 0){
+                this.flush(true);
+            } else {
+                this.flushing = false;
+            }
+        } else {
+            this.flushing = false;
+        }
+
+    }
+}
+
+class Transaction {
+    public resolve:Function;
+    public reject:Function;
+    public tx:Function;
+
+    constructor(resolve:Function, reject:Function, tx:Function) {
+        this.resolve = resolve;
+        this.reject = reject;
+        this.tx = tx;
     }
 }

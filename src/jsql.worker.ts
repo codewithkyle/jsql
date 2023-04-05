@@ -269,7 +269,12 @@ class JSQLWorker {
                     bypass = true;
                     optimized = true;
                     const start = performance.now();
-                    const results = await this.db.count(query.table);
+                    let results = 0;
+                    if (table?.cache){
+                        results = table.cache.length;
+                    } else {
+                        results = await this.db.count(query.table);
+                    }
                     const end = performance.now();
                     if (debug) console.log(`IDB get performed in ${((end - start) / 1000).toFixed(3)} sec`);
                     // Fix output format & handle column alias
@@ -297,8 +302,20 @@ class JSQLWorker {
                     optimized = true;
                     bypass = true;
                     const start = performance.now();
-                    // @ts-expect-error
-                    output = await this.db.countByIndex(query.table, query.where[0].checks[0].column, query.where[0].checks[0].value);
+                    if (table?.cache){
+                        bypass = false;
+                        let count = 0;
+                        for (let c = 0; c < table.cache.length; c++) {
+                            const row = table.cache[c];
+                            if (row[query.where[0].checks[0].column] == query.where[0].checks[0].value) {
+                                count++;
+                            }
+                        }
+                        output = [count];
+                    } else {
+                        // @ts-expect-error
+                        output = await this.db.countByIndex(query.table, query.where[0].checks[0].column, query.where[0].checks[0].value);
+                    }
                     const end = performance.now();
                     if (debug) console.log(`IDB get performed in ${((end - start) / 1000).toFixed(3)} sec`);
                 }
@@ -315,11 +332,15 @@ class JSQLWorker {
                     // @ts-expect-error
                     query.where[0].checks[0]?.column.indexOf(".") === -1
                 ) {
-                    skipWhere = true;
                     optimized = true;
                     const start = performance.now();
-                    // @ts-expect-error
-                    output = await this.db.getAllByIndex(query.table, query.where[0].checks[0].column, query.where[0].checks[0].value);
+                    if (table?.cache) {
+                        output = [...table.cache];
+                    } else {
+                        // @ts-expect-error
+                        output = await this.db.getAllByIndex(query.table, query.where[0].checks[0].column, query.where[0].checks[0].value);
+                        skipWhere = true;
+                    }
                     const end = performance.now();
                     if (debug) console.log(`IDB get performed in ${((end - start) / 1000).toFixed(3)} sec`);
                 }
@@ -328,7 +349,7 @@ class JSQLWorker {
             if (!optimized) {
                 const start = performance.now();
                 if (table?.cache) {
-                    output = [...table.cache];
+                    output = structuredClone(table.cache);
                 } else {
                     output = await this.db.getAll(query.table);
                 }
@@ -377,21 +398,21 @@ class JSQLWorker {
                             }
                         }
                         await Promise.all(transactions);
-                        if (table?.cache) {
-                            for (let r = 0; r < output.length; r++) {
-                                let index = -1;
-                                for (let c = 0; c < table.cache.length; c++) {
-                                    // @ts-expect-error
-                                    if (table.cache[c][table.keyPath] === output[r][table.keyPath]) {
-                                        index = c;
-                                        break;
-                                    }
-                                }
-                                if (index > -1) {
-                                    table.cache[index] = output[r];
-                                }
-                            }
-                        }
+                        //if (table?.cache) {
+                            //for (let r = 0; r < output.length; r++) {
+                                //let index = -1;
+                                //for (let c = 0; c < table.cache.length; c++) {
+                                    //// @ts-expect-error
+                                    //if (table.cache[c][table.keyPath] === output[r][table.keyPath]) {
+                                        //index = c;
+                                        //break;
+                                    //}
+                                //}
+                                //if (index > -1) {
+                                    //table.cache[index] = output[r];
+                                //}
+                            //}
+                        //}
                         if (undefinedColumns.length){
                             console.warn(`Setting undefined columns: ${[...new Set(undefinedColumns)].join(", ")}`);
                         }
@@ -405,21 +426,21 @@ class JSQLWorker {
                             transactions.push(this.db.delete(query.table, output[r][table.keyPath]));
                         }
                         await Promise.all(transactions);
-                        if (table?.cache){
-                            let index = -1;
-                            for (let r = output.length - 1; r >= 0; r++) {
-                                for (let c = 0; c < table.cache.length; c++) {
-                                    // @ts-expect-error
-                                    if (table.cache[c][table.keyPath] === output[r][table.keyPath]) {
-                                        index = c;
-                                        break;
-                                    }
-                                }
-                                if (index > -1) {
-                                    table.cache.splice(index, 1);
-                                }
-                            }
-                        }
+                        //if (table?.cache){
+                            //let index = -1;
+                            //for (let r = output.length - 1; r >= 0; r++) {
+                                //for (let c = 0; c < table.cache.length; c++) {
+                                    //// @ts-expect-error
+                                    //if (table.cache[c][table.keyPath] === output[r][table.keyPath]) {
+                                        //index = c;
+                                        //break;
+                                    //}
+                                //}
+                                //if (index > -1) {
+                                    //table.cache.splice(index, 1);
+                                //}
+                            //}
+                        //}
                         break;
                     case "SELECT":
                         if (query.where !== null && !skipWhere) {
@@ -468,9 +489,9 @@ class JSQLWorker {
                                     console.warn(`Inserting undefined columns: ${undefinedKeys.join(", ")}`);
                                 }
                                 await this.db.add(query.table, b);
-                                if (table?.cache) {
-                                    table.cache.push(b);
-                                }
+                                //if (table?.cache) {
+                                    //table.cache.push(b);
+                                //}
                             }
                             output = query.values;
                         }
