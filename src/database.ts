@@ -265,7 +265,7 @@ export default class IDB {
             if (transaction){
                 try {
                     const result = await transaction.tx();
-                    transaction.resolve(result);
+                    transaction.resolve(structuredClone(result));
                 } catch (e) {
                     transaction.reject(e);
                 }

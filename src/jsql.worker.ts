@@ -307,6 +307,7 @@ class JSQLWorker {
                         let count = 0;
                         for (let c = 0; c < table.cache.length; c++) {
                             const row = table.cache[c];
+                            // @ts-expect-error
                             if (row[query.where[0].checks[0].column] == query.where[0].checks[0].value) {
                                 count++;
                             }
@@ -333,13 +334,19 @@ class JSQLWorker {
                     query.where[0].checks[0]?.column.indexOf(".") === -1
                 ) {
                     optimized = true;
+                    skipWhere = true;
                     const start = performance.now();
                     if (table?.cache) {
-                        output = [...table.cache];
+                        output = structuredClone(table.cache);
+                        for (let i = output.length - 1; i >= 0; i--){
+                            // @ts-expect-error
+                            if (output[i][query.where[0].checks[0].column] != query.where[0].checks[0].value) {
+                                output.splice(i, 1);
+                            }
+                        }
                     } else {
                         // @ts-expect-error
                         output = await this.db.getAllByIndex(query.table, query.where[0].checks[0].column, query.where[0].checks[0].value);
-                        skipWhere = true;
                     }
                     const end = performance.now();
                     if (debug) console.log(`IDB get performed in ${((end - start) / 1000).toFixed(3)} sec`);
@@ -602,6 +609,7 @@ class JSQLWorker {
             }
             return value;
         } catch (e) {
+            console.log(row);
             throw `SQL Error: unknown column '${check.column}' in WHERE clause.`;
         }
     }
