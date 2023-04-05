@@ -1,6 +1,6 @@
 {
     "name": "@codewithkyle/jsql",
-    "version": "1.3.2",
+    "version": "1.3.3",
     "description": "Asynchronously access and manage your IndexedDB databases using SQL queries.",
     "main": "jsql.js",
     "types": "jsql.d.ts",
@@ -12,7 +12,7 @@
     ],
     "scripts": {
         "bundle": "node ./build/bundle.js",
-        "build": "esbuild ./src/jsql.ts --outfile=jsql.js --format=esm --target=es2022 && esbuild ./src/jsql.worker.ts --outfile=jsql.worker.js --bundle --target=es2022 && esbuild ./src/stream-parser.worker.ts --outfile=stream.worker.js --bundle --target=es2022",
+        "build": "esbuild ./src/jsql.ts --outfile=jsql.js --format=esm --minify --target=es2022 && esbuild ./src/jsql.worker.ts --outfile=jsql.worker.js --minify --bundle --target=es2022 && esbuild ./src/stream-parser.worker.ts --outfile=stream.worker.js --minify --bundle --target=es2022",
         "build:test": "npm run build && cp ./jsql.js ./test && cp ./jsql.worker.js ./test && cp ./stream.worker.js ./test",
         "test": "npm run build:test && serve ./test",
         "predeploy": "docs -o ./public -c ./CNAME",
